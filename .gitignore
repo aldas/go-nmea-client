@@ -15,3 +15,8 @@
 # vendor/
 
 .idea
+
+# Ignore Canboat PGNs file https://github.com/canboat/canboat/blob/master/analyzer/pgns.json
+pgns.json
+testdata/pgns.json
+canboat/testdata/pgns.json

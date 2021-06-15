@@ -1,0 +1,336 @@
+{
+  "PGN": 129029,
+  "Id": "gnssPositionData",
+  "Description": "GNSS Position Data",
+  "Type": "Fast",
+  "Complete": true,
+  "Length": 51,
+  "RepeatingFields": 3,
+  "Fields": [
+    {
+      "Order": 1,
+      "Id": "sid",
+      "Name": "SID",
+      "BitLength": 8,
+      "BitOffset": 0,
+      "BitStart": 0,
+      "Signed": false
+    },
+    {
+      "Order": 2,
+      "Id": "date",
+      "Name": "Date",
+      "Description": "Days since January 1, 1970",
+      "BitLength": 16,
+      "BitOffset": 8,
+      "BitStart": 0,
+      "Units": "days",
+      "Type": "Date",
+      "Resolution": 1,
+      "Signed": false
+    },
+    {
+      "Order": 3,
+      "Id": "time",
+      "Name": "Time",
+      "Description": "Seconds since midnight",
+      "BitLength": 32,
+      "BitOffset": 24,
+      "BitStart": 0,
+      "Units": "s",
+      "Type": "Time",
+      "Resolution": 0.0001,
+      "Signed": false
+    },
+    {
+      "Order": 4,
+      "Id": "latitude",
+      "Name": "Latitude",
+      "BitLength": 64,
+      "BitOffset": 56,
+      "BitStart": 0,
+      "Units": "deg",
+      "Type": "Latitude",
+      "Resolution": 0.0000000000000001,
+      "Signed": true
+    },
+    {
+      "Order": 5,
+      "Id": "longitude",
+      "Name": "Longitude",
+      "BitLength": 64,
+      "BitOffset": 120,
+      "BitStart": 0,
+      "Units": "deg",
+      "Type": "Longitude",
+      "Resolution": 0.0000000000000001,
+      "Signed": true
+    },
+    {
+      "Order": 6,
+      "Id": "altitude",
+      "Name": "Altitude",
+      "Description": "Altitude referenced to WGS-84",
+      "BitLength": 64,
+      "BitOffset": 184,
+      "BitStart": 0,
+      "Units": "m",
+      "Resolution": 1e-06,
+      "Signed": true
+    },
+    {
+      "Order": 7,
+      "Id": "gnssType",
+      "Name": "GNSS type",
+      "BitLength": 4,
+      "BitOffset": 248,
+      "BitStart": 0,
+      "Type": "Lookup table",
+      "Signed": false,
+      "EnumValues": [
+        {
+          "name": "GPS",
+          "value": "0"
+        },
+        {
+          "name": "GLONASS",
+          "value": "1"
+        },
+        {
+          "name": "GPS+GLONASS",
+          "value": "2"
+        },
+        {
+          "name": "GPS+SBAS/WAAS",
+          "value": "3"
+        },
+        {
+          "name": "GPS+SBAS/WAAS+GLONASS",
+          "value": "4"
+        },
+        {
+          "name": "Chayka",
+          "value": "5"
+        },
+        {
+          "name": "integrated",
+          "value": "6"
+        },
+        {
+          "name": "surveyed",
+          "value": "7"
+        },
+        {
+          "name": "Galileo",
+          "value": "8"
+        }
+      ]
+    },
+    {
+      "Order": 8,
+      "Id": "method",
+      "Name": "Method",
+      "BitLength": 4,
+      "BitOffset": 252,
+      "BitStart": 4,
+      "Type": "Lookup table",
+      "Signed": false,
+      "EnumValues": [
+        {
+          "name": "no GNSS",
+          "value": "0"
+        },
+        {
+          "name": "GNSS fix",
+          "value": "1"
+        },
+        {
+          "name": "DGNSS fix",
+          "value": "2"
+        },
+        {
+          "name": "Precise GNSS",
+          "value": "3"
+        },
+        {
+          "name": "RTK Fixed Integer",
+          "value": "4"
+        },
+        {
+          "name": "RTK float",
+          "value": "5"
+        },
+        {
+          "name": "Estimated (DR) mode",
+          "value": "6"
+        },
+        {
+          "name": "Manual Input",
+          "value": "7"
+        },
+        {
+          "name": "Simulate mode",
+          "value": "8"
+        }
+      ]
+    },
+    {
+      "Order": 9,
+      "Id": "integrity",
+      "Name": "Integrity",
+      "BitLength": 2,
+      "BitOffset": 256,
+      "BitStart": 0,
+      "Type": "Lookup table",
+      "Signed": false,
+      "EnumValues": [
+        {
+          "name": "No integrity checking",
+          "value": "0"
+        },
+        {
+          "name": "Safe",
+          "value": "1"
+        },
+        {
+          "name": "Caution",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "Order": 10,
+      "Id": "reserved",
+      "Name": "Reserved",
+      "Description": "Reserved",
+      "BitLength": 6,
+      "BitOffset": 258,
+      "BitStart": 2,
+      "Type": "Binary data",
+      "Signed": false
+    },
+    {
+      "Order": 11,
+      "Id": "numberOfSvs",
+      "Name": "Number of SVs",
+      "Description": "Number of satellites used in solution",
+      "BitLength": 8,
+      "BitOffset": 264,
+      "BitStart": 0,
+      "Signed": false
+    },
+    {
+      "Order": 12,
+      "Id": "hdop",
+      "Name": "HDOP",
+      "Description": "Horizontal dilution of precision",
+      "BitLength": 16,
+      "BitOffset": 272,
+      "BitStart": 0,
+      "Resolution": 0.01,
+      "Signed": true
+    },
+    {
+      "Order": 13,
+      "Id": "pdop",
+      "Name": "PDOP",
+      "Description": "Probable dilution of precision",
+      "BitLength": 16,
+      "BitOffset": 288,
+      "BitStart": 0,
+      "Resolution": 0.01,
+      "Signed": true
+    },
+    {
+      "Order": 14,
+      "Id": "geoidalSeparation",
+      "Name": "Geoidal Separation",
+      "Description": "Geoidal Separation",
+      "BitLength": 32,
+      "BitOffset": 304,
+      "BitStart": 0,
+      "Units": "m",
+      "Resolution": 0.01,
+      "Signed": true
+    },
+    {
+      "Order": 15,
+      "Id": "referenceStations",
+      "Name": "Reference Stations",
+      "Description": "Number of reference stations",
+      "BitLength": 8,
+      "BitOffset": 336,
+      "BitStart": 0,
+      "Signed": false
+    },
+    {
+      "Order": 16,
+      "Id": "referenceStationType",
+      "Name": "Reference Station Type",
+      "BitLength": 4,
+      "BitOffset": 344,
+      "BitStart": 0,
+      "Type": "Lookup table",
+      "Signed": false,
+      "EnumValues": [
+        {
+          "name": "GPS",
+          "value": "0"
+        },
+        {
+          "name": "GLONASS",
+          "value": "1"
+        },
+        {
+          "name": "GPS+GLONASS",
+          "value": "2"
+        },
+        {
+          "name": "GPS+SBAS/WAAS",
+          "value": "3"
+        },
+        {
+          "name": "GPS+SBAS/WAAS+GLONASS",
+          "value": "4"
+        },
+        {
+          "name": "Chayka",
+          "value": "5"
+        },
+        {
+          "name": "integrated",
+          "value": "6"
+        },
+        {
+          "name": "surveyed",
+          "value": "7"
+        },
+        {
+          "name": "Galileo",
+          "value": "8"
+        }
+      ]
+    },
+    {
+      "Order": 17,
+      "Id": "referenceStationId",
+      "Name": "Reference Station ID",
+      "BitLength": 12,
+      "BitOffset": 348,
+      "BitStart": 4,
+      "Units": null,
+      "Signed": false
+    },
+    {
+      "Order": 18,
+      "Id": "ageOfDgnssCorrections",
+      "Name": "Age of DGNSS Corrections",
+      "BitLength": 16,
+      "BitOffset": 360,
+      "BitStart": 0,
+      "Units": "s",
+      "Resolution": 0.01,
+      "Signed": false
+    }
+  ]
+}

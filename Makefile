@@ -10,10 +10,10 @@ check: lint vet race ## check project
 
 init:
 	git config core.hooksPath ./scripts/.githooks
-	@go get -u golang.org/x/lint/golint
+	@go get -u honnef.co/go/tools/cmd/staticcheck@latest
 
 lint: ## Lint the files
-	@golint -set_exit_status ${PKG_LIST}
+	@staticcheck -tests=false ${PKG_LIST}
 
 vet: ## Vet the files
 	@go vet ${PKG_LIST}
@@ -40,3 +40,6 @@ coverhtml: ## Generate global code coverage report in HTML
 
 help: ## Display this help screen
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+download-canboat-pgns: # Downloads latest Canboat PNGs definitions (pgns.json) from Canboat repository
+	@curl https://raw.githubusercontent.com/canboat/canboat/master/analyzer/pgns.json -o canboat/testdata/pgns.json

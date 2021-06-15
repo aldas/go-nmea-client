@@ -1,0 +1,60 @@
+{
+  "PGN": 127489,
+  "Id": "engineParametersDynamic",
+  "Description": "Engine Parameters, Dynamic",
+  "Type": "Fast",
+  "Complete": true,
+  "Length": 26,
+  "RepeatingFields": 0,
+  "Fields": [
+    {
+      "Order": 1,
+      "Id": "instance",
+      "Name": "Instance",
+      "BitLength": 8,
+      "BitOffset": 0,
+      "BitStart": 0,
+      "Type": "Lookup table",
+      "Signed": false,
+      "EnumValues": [
+        {
+          "name": "Single Engine or Dual Engine Port",
+          "value": "0"
+        },
+        {
+          "name": "Dual Engine Starboard",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "Order": 2,
+      "Id": "oilPressure",
+      "Name": "Oil pressure",
+      "BitLength": 16,
+      "BitOffset": 8,
+      "BitStart": 0,
+      "Units": "hPa",
+      "Type": "Pressure",
+      "Signed": false
+    },
+    {
+      "Order": 12,
+      "Id": "discreteStatus2",
+      "Name": "Discrete Status 2",
+      "BitLength": 16,
+      "BitOffset": 176,
+      "BitStart": 0,
+      "Type": "Bitfield",
+      "Signed": false,
+      "EnumBitValues": [
+        {
+          "0": "Warning Level 1"
+        },
+        {
+          "1": "Warning Level 2"
+        }
+      ]
+    }
+  ]
+}

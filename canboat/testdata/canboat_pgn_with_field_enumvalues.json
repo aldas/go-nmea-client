@@ -1,0 +1,50 @@
+{
+  "PGN": 127250,
+  "Id": "vesselHeading",
+  "Description": "Vessel Heading",
+  "Type": "Single",
+  "Complete": true,
+  "Length": 8,
+  "RepeatingFields": 0,
+  "Fields": [
+    {
+      "Order": 2,
+      "Id": "heading",
+      "Name": "Heading",
+      "BitLength": 16,
+      "BitOffset": 8,
+      "BitStart": 0,
+      "Units": "rad",
+      "Resolution": 0.0001,
+      "Signed": false
+    },
+    {
+      "Order": 5,
+      "Id": "reference",
+      "Name": "Reference",
+      "BitLength": 2,
+      "BitOffset": 56,
+      "BitStart": 0,
+      "Type": "Lookup table",
+      "Signed": false,
+      "EnumValues": [
+        {
+          "name": "True",
+          "value": "0"
+        },
+        {
+          "name": "Magnetic",
+          "value": "1"
+        },
+        {
+          "name": "Error",
+          "value": "2"
+        },
+        {
+          "name": "Null",
+          "value": "3"
+        }
+      ]
+    }
+  ]
+}
