@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// TODO: Canboat notes:
 /* Actisense message structure is:
 
 	const STX = 0x02  // Start packet
@@ -39,9 +40,7 @@ const (
 	ETX = 0x03
 	// DLE marker byte before start/end packet byte. Is sent before STX or ETX byte is sent (DLE+STX or DLE+ETX)
 	DLE = 0x10
-)
 
-const (
 	// cmdN2KMessageReceived identifies that packet is NMEA200 message
 	cmdN2KMessageReceived = 0x93
 	// cmdNGTMessageReceived identifies that packet is Actisense NGT specific message
@@ -211,6 +210,7 @@ func crc(data []byte) uint8 {
 
 // Initialize initializes connection to device. Otherwise NGT1 will not send data.
 //
+// Canboat notes:
 // The following startup command reverse engineered from Actisense NMEAreader.
 // It instructs the NGT1 to clear its PGN message TX list, thus it starts sending all PGNs.
 func (d *NGT1) Initialize() error {
@@ -253,6 +253,7 @@ func (d *NGT1) write(data []byte) error {
 	}
 	return nil
 }
+
 func (d *NGT1) Close() error {
 	if c, ok := d.device.(io.Closer); ok {
 		return c.Close()

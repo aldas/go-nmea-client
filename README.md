@@ -4,6 +4,7 @@ Go client to read NMEA 2000 messages from canbus interfaces or usb devices
 > WORK IN PROGRESS
 > Only public because including private Go library is too much of a hustle for CI
 
+> Relies heavily on work done by https://github.com/canboat/canboat developers
 
 
 ## TODO

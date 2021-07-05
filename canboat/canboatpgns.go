@@ -8,6 +8,7 @@ import (
 	"strconv"
 )
 
+// TODO: Canboat notes:
 // typedef struct
 //{
 //  char *   name;
@@ -54,6 +55,7 @@ import (
 //  char *camelName; /* Filled by C, no need to set in initializers. */
 //} Field;
 
+// TODO: Canboat notes:
 // typedef struct
 //{
 //  char *     description;
