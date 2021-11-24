@@ -61,17 +61,8 @@ func main() {
 	fmt.Printf("# Starting to read device: %v\n", *deviceAddr)
 	time.Sleep(1 * time.Second)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
-
-	var gracefulStop = make(chan os.Signal)
-	signal.Notify(gracefulStop, syscall.SIGTERM)
-	signal.Notify(gracefulStop, syscall.SIGINT)
-	go func() {
-		sig := <-gracefulStop
-		fmt.Printf("# exiting. caught signal: %+v\n", sig)
-		cancel()
-	}()
 
 	for {
 		rawMessage, err := device.ReadRawMessage(ctx)
