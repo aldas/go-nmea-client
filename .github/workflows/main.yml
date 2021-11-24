@@ -18,7 +18,7 @@ jobs:
 
       - name: Execute Go lint, check, test
         run: |
-          make download-canboat-pgn
+          make download-canboat-pgns
           make init
           make check
           go test -race --coverprofile=coverage.coverprofile --covermode=atomic ./...
