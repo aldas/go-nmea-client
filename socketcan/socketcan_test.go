@@ -16,9 +16,9 @@ func TestParseISO11783ID(t *testing.T) {
 			canID: 251665825, // 0F001DA1
 			expect: CanBusHeader{
 				Priority:    3,
-				PGN:         65536,
-				Destination: 29,  // 1D
-				Source:      161, // A1
+				PGN:         196608, // 0x30000
+				Destination: 29,     // 1D
+				Source:      161,    // A1
 			},
 		},
 		{
@@ -26,7 +26,7 @@ func TestParseISO11783ID(t *testing.T) {
 			canID: 252714421, // 0F101DB5
 			expect: CanBusHeader{
 				Priority:    3,
-				PGN:         69632,
+				PGN:         0x31000,
 				Destination: 29,  // 1D
 				Source:      181, // B5
 			},
@@ -36,7 +36,7 @@ func TestParseISO11783ID(t *testing.T) {
 			canID: 252714401, // 0F101DA1
 			expect: CanBusHeader{
 				Priority:    3,
-				PGN:         69632,
+				PGN:         0x31000,
 				Destination: 29,  // 1D
 				Source:      161, // A1
 			},
@@ -46,9 +46,9 @@ func TestParseISO11783ID(t *testing.T) {
 			canID: 251660216, // 0F0007B8
 			expect: CanBusHeader{
 				Priority:    3,
-				PGN:         65536,
-				Destination: 7,   // 07
-				Source:      184, // B8
+				PGN:         196608, // 0x30000
+				Destination: 7,      // 07
+				Source:      184,    // B8
 			},
 		},
 	}

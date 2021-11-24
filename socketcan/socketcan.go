@@ -15,7 +15,8 @@ func ParseISO11783ID(canID uint32) CanBusHeader {
 	}
 	pduFormat := uint8(canID >> 16) // bits 16-23
 	ps := uint8(canID >> 8)         // bits 8-15
-	pgn := ((canID >> 24) & 1 << 16) + uint32(pduFormat)<<8
+	rAndDP := uint8(canID>>24) & 3  // 3 = first and second bit
+	pgn := (uint32(rAndDP) << 16) + uint32(pduFormat)<<8
 	if pduFormat < 240 {
 		result.Destination = ps
 		result.PGN = pgn
