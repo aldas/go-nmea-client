@@ -4,7 +4,7 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: [ 1.16 ]
+        go-version: [ 1.17 ]
         platform: [ ubuntu-latest ]
     runs-on: ${{ matrix.platform }}
     steps:
@@ -18,13 +18,14 @@ jobs:
 
       - name: Execute Go lint, check, test
         run: |
+          make download-canboat-pgn
           make init
           make check
           go test -race --coverprofile=coverage.coverprofile --covermode=atomic ./...
 
       - name: Upload coverage to Codecov
-        if: success() && matrix.go-version == 1.16 && matrix.platform == 'ubuntu-latest'
-        uses: codecov/codecov-action@v1
+        if: success() && matrix.go-version == 1.17 && matrix.platform == 'ubuntu-latest'
+        uses: codecov/codecov-action@v2
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: coverage.coverprofile
