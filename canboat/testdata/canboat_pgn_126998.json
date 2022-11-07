@@ -1,0 +1,34 @@
+{
+  "PGN": 126998,
+  "Id": "configurationInformation",
+  "Description": "Configuration Information",
+  "Explanation": "Free-form alphanumeric fields describing the installation (e.g., starboard engine room location) of the device and installation notes (e.g., calibration data).",
+  "Type": "Fast",
+  "Complete": true,
+  "FieldCount": 3,
+  "MinLength": 0,
+  "TransmissionIrregular": true,
+  "Fields": [
+    {
+      "Order": 1,
+      "Id": "installationDescription1",
+      "Name": "Installation Description #1",
+      "BitLengthVariable": true,
+      "FieldType": "STRING_LAU"
+    },
+    {
+      "Order": 2,
+      "Id": "installationDescription2",
+      "Name": "Installation Description #2",
+      "BitLengthVariable": true,
+      "FieldType": "STRING_LAU"
+    },
+    {
+      "Order": 3,
+      "Id": "manufacturerInformation",
+      "Name": "Manufacturer Information",
+      "BitLengthVariable": true,
+      "FieldType": "STRING_LAU"
+    }
+  ]
+}

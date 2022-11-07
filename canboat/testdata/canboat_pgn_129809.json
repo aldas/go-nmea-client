@@ -1,0 +1,97 @@
+{
+  "PGN":129809,
+  "Id":"aisClassBStaticDataMsg24PartA",
+  "Description":"AIS Class B static data (msg 24 Part A)",
+  "URL":"https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+  "Type":"Fast",
+  "Complete":true,
+  "FieldCount":7,
+  "Length":27,
+  "TransmissionIrregular":true,
+  "Fields":[
+    {
+      "Order":1,
+      "Id":"messageId",
+      "Name":"Message ID",
+      "BitLength":6,
+      "BitOffset":0,
+      "BitStart":0,
+      "Resolution":1,
+      "Signed":false,
+      "RangeMin":0,
+      "RangeMax":61,
+      "FieldType":"LOOKUP",
+      "LookupEnumeration":"AIS_MESSAGE_ID"
+    },
+    {
+      "Order":2,
+      "Id":"repeatIndicator",
+      "Name":"Repeat Indicator",
+      "BitLength":2,
+      "BitOffset":6,
+      "BitStart":6,
+      "Resolution":1,
+      "Signed":false,
+      "RangeMin":0,
+      "RangeMax":2,
+      "FieldType":"LOOKUP",
+      "LookupEnumeration":"REPEAT_INDICATOR"
+    },
+    {
+      "Order":3,
+      "Id":"userId",
+      "Name":"User ID",
+      "BitLength":32,
+      "BitOffset":8,
+      "BitStart":0,
+      "Resolution":1,
+      "FieldType":"MMSI"
+    },
+    {
+      "Order":4,
+      "Id":"name",
+      "Name":"Name",
+      "BitLength":160,
+      "BitOffset":40,
+      "BitStart":0,
+      "FieldType":"STRING_FIX"
+    },
+    {
+      "Order":5,
+      "Id":"aisTransceiverInformation",
+      "Name":"AIS Transceiver information",
+      "BitLength":5,
+      "BitOffset":200,
+      "BitStart":0,
+      "Resolution":1,
+      "Signed":false,
+      "RangeMin":0,
+      "RangeMax":29,
+      "FieldType":"LOOKUP",
+      "LookupEnumeration":"AIS_TRANSCEIVER"
+    },
+    {
+      "Order":6,
+      "Id":"reserved",
+      "Name":"Reserved",
+      "BitLength":3,
+      "BitOffset":205,
+      "BitStart":5,
+      "Resolution":1,
+      "FieldType":"RESERVED"
+    },
+    {
+      "Order":7,
+      "Id":"sequenceId",
+      "Name":"Sequence ID",
+      "BitLength":8,
+      "BitOffset":208,
+      "BitStart":0,
+      "Resolution":1,
+      "Signed":false,
+      "RangeMin":0,
+      "RangeMax":253,
+      "FieldType":"NUMBER"
+    }
+  ]
+}

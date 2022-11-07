@@ -1,0 +1,262 @@
+{
+  "PGN": 129808,
+  "Id": "dscDistressCallInformation",
+  "Description": "DSC Distress Call Information",
+  "URL": "http://www.nmea.org/Assets/2000_20150328%20dsc%20technical%20corrigendum%20database%20version%202.100.pdf",
+  "Type": "Fast",
+  "Complete": false,
+  "Missing": [
+    "Fields",
+    "FieldLengths",
+    "Resolution",
+    "SampleData"
+  ],
+  "FieldCount": 22,
+  "MinLength": 60,
+  "RepeatingFieldSet1Size": 2,
+  "RepeatingFieldSet1StartField": 21,
+  "TransmissionIrregular": true,
+  "Fields": [
+    {
+      "Order": 1,
+      "Id": "dscFormat",
+      "Name": "DSC Format",
+      "BitLength": 8,
+      "BitOffset": 0,
+      "BitStart": 0,
+      "Resolution": 1,
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 253,
+      "FieldType": "LOOKUP",
+      "LookupEnumeration": "DSC_FORMAT"
+    },
+    {
+      "Order": 2,
+      "Id": "dscCategory",
+      "Name": "DSC Category",
+      "Description": "Distress",
+      "BitLength": 8,
+      "BitOffset": 8,
+      "BitStart": 0,
+      "Match": 112,
+      "Resolution": 1,
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 253,
+      "FieldType": "NUMBER"
+    },
+    {
+      "Order": 3,
+      "Id": "dscMessageAddress",
+      "Name": "DSC Message Address",
+      "Description": "MMSI, Geographic Area or blank",
+      "BitLength": 40,
+      "BitOffset": 16,
+      "BitStart": 0,
+      "Resolution": 1,
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 1099511627773,
+      "FieldType": "DECIMAL"
+    },
+    {
+      "Order": 4,
+      "Id": "natureOfDistress",
+      "Name": "Nature of Distress",
+      "BitLength": 8,
+      "BitOffset": 56,
+      "BitStart": 0,
+      "Resolution": 1,
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 253,
+      "FieldType": "LOOKUP",
+      "LookupEnumeration": "DSC_NATURE"
+    },
+    {
+      "Order": 5,
+      "Id": "subsequentCommunicationModeOr2ndTelecommand",
+      "Name": "Subsequent Communication Mode or 2nd Telecommand",
+      "BitLength": 8,
+      "BitOffset": 64,
+      "BitStart": 0,
+      "Resolution": 1,
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 253,
+      "FieldType": "LOOKUP",
+      "LookupEnumeration": "DSC_SECOND_TELECOMMAND"
+    },
+    {
+      "Order": 6,
+      "Id": "proposedRxFrequencyChannel",
+      "Name": "Proposed Rx Frequency/Channel",
+      "BitLength": 48,
+      "BitOffset": 72,
+      "BitStart": 0,
+      "FieldType": "STRING_FIX"
+    },
+    {
+      "Order": 7,
+      "Id": "proposedTxFrequencyChannel",
+      "Name": "Proposed Tx Frequency/Channel",
+      "BitLength": 48,
+      "BitOffset": 120,
+      "BitStart": 0,
+      "FieldType": "STRING_FIX"
+    },
+    {
+      "Order": 8,
+      "Id": "telephoneNumber",
+      "Name": "Telephone Number",
+      "BitLengthVariable": true,
+      "FieldType": "STRING_LAU"
+    },
+    {
+      "Order": 9,
+      "Id": "latitudeOfVesselReported",
+      "Name": "Latitude of Vessel Reported",
+      "BitLength": 32,
+      "Unit": "deg",
+      "Resolution": 1e-07,
+      "Signed": true,
+      "RangeMin": -214.7483647,
+      "RangeMax": 214.7483645,
+      "FieldType": "NUMBER",
+      "PhysicalQuantity": "GEOGRAPHICAL_COORDINATE"
+    },
+    {
+      "Order": 10,
+      "Id": "longitudeOfVesselReported",
+      "Name": "Longitude of Vessel Reported",
+      "BitLength": 32,
+      "Unit": "deg",
+      "Resolution": 1e-07,
+      "Signed": true,
+      "RangeMin": -214.7483647,
+      "RangeMax": 214.7483645,
+      "FieldType": "NUMBER",
+      "PhysicalQuantity": "GEOGRAPHICAL_COORDINATE"
+    },
+    {
+      "Order": 11,
+      "Id": "timeOfPosition",
+      "Name": "Time of Position",
+      "BitLength": 32,
+      "Unit": "s",
+      "Resolution": 0.0001,
+      "FieldType": "TIME",
+      "PhysicalQuantity": "TIME"
+    },
+    {
+      "Order": 12,
+      "Id": "mmsiOfShipInDistress",
+      "Name": "MMSI of Ship In Distress",
+      "BitLength": 40,
+      "Resolution": 1,
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 1099511627773,
+      "FieldType": "DECIMAL"
+    },
+    {
+      "Order": 13,
+      "Id": "dscEosSymbol",
+      "Name": "DSC EOS Symbol",
+      "BitLength": 8,
+      "Resolution": 1,
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 253,
+      "FieldType": "NUMBER"
+    },
+    {
+      "Order": 14,
+      "Id": "expansionEnabled",
+      "Name": "Expansion Enabled",
+      "BitLength": 2,
+      "Resolution": 1,
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 2,
+      "FieldType": "LOOKUP",
+      "LookupEnumeration": "YES_NO"
+    },
+    {
+      "Order": 15,
+      "Id": "reserved",
+      "Name": "Reserved",
+      "BitLength": 6,
+      "Resolution": 1,
+      "FieldType": "RESERVED"
+    },
+    {
+      "Order": 16,
+      "Id": "callingRxFrequencyChannel",
+      "Name": "Calling Rx Frequency/Channel",
+      "BitLength": 48,
+      "FieldType": "STRING_FIX"
+    },
+    {
+      "Order": 17,
+      "Id": "callingTxFrequencyChannel",
+      "Name": "Calling Tx Frequency/Channel",
+      "BitLength": 48,
+      "FieldType": "STRING_FIX"
+    },
+    {
+      "Order": 18,
+      "Id": "timeOfReceipt",
+      "Name": "Time of Receipt",
+      "BitLength": 32,
+      "Unit": "s",
+      "Resolution": 0.0001,
+      "FieldType": "TIME",
+      "PhysicalQuantity": "TIME"
+    },
+    {
+      "Order": 19,
+      "Id": "dateOfReceipt",
+      "Name": "Date of Receipt",
+      "BitLength": 16,
+      "Unit": "d",
+      "Resolution": 1,
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 65533,
+      "FieldType": "DATE",
+      "PhysicalQuantity": "DATE"
+    },
+    {
+      "Order": 20,
+      "Id": "dscEquipmentAssignedMessageId",
+      "Name": "DSC Equipment Assigned Message ID",
+      "BitLength": 16,
+      "Resolution": 1,
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 65533,
+      "FieldType": "NUMBER"
+    },
+    {
+      "Order": 21,
+      "Id": "dscExpansionFieldSymbol",
+      "Name": "DSC Expansion Field Symbol",
+      "BitLength": 8,
+      "Resolution": 1,
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 253,
+      "FieldType": "LOOKUP",
+      "LookupEnumeration": "DSC_EXPANSION_DATA"
+    },
+    {
+      "Order": 22,
+      "Id": "dscExpansionFieldData",
+      "Name": "DSC Expansion Field Data",
+      "BitLengthVariable": true,
+      "FieldType": "STRING_LAU"
+    }
+  ]
+}

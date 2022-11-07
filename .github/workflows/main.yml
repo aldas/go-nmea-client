@@ -1,20 +1,28 @@
-on: [ push ]
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+  workflow_dispatch:
+
 name: Check and test
 jobs:
   test:
     strategy:
       matrix:
-        go-version: [ 1.17 ]
+        go-version: [ 1.19 ]
         platform: [ ubuntu-latest ]
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go-version }}
 
       - name: Checkout code of this branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Execute Go lint, check, test
         run: |
@@ -24,8 +32,8 @@ jobs:
           go test -race --coverprofile=coverage.coverprofile --covermode=atomic ./...
 
       - name: Upload coverage to Codecov
-        if: success() && matrix.go-version == 1.17 && matrix.platform == 'ubuntu-latest'
-        uses: codecov/codecov-action@v2
+        if: success() && matrix.go-version == 1.19 && matrix.platform == 'ubuntu-latest'
+        uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: coverage.coverprofile

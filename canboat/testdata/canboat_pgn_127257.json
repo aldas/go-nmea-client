@@ -1,0 +1,70 @@
+{
+  "PGN": 127257,
+  "Id": "attitude",
+  "Description": "Attitude",
+  "Type": "Single",
+  "Complete": true,
+  "FieldCount": 4,
+  "Length": 7,
+  "TransmissionInterval": 1000,
+  "Fields": [
+    {
+      "Order": 1,
+      "Id": "sid",
+      "Name": "SID",
+      "BitLength": 8,
+      "BitOffset": 0,
+      "BitStart": 0,
+      "Resolution": 1,
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 253,
+      "FieldType": "NUMBER"
+    },
+    {
+      "Order": 2,
+      "Id": "yaw",
+      "Name": "Yaw",
+      "BitLength": 16,
+      "BitOffset": 8,
+      "BitStart": 0,
+      "Unit": "rad",
+      "Resolution": 0.0001,
+      "Signed": true,
+      "RangeMin": -3.2767,
+      "RangeMax": 3.2765,
+      "FieldType": "NUMBER",
+      "PhysicalQuantity": "ANGLE"
+    },
+    {
+      "Order": 3,
+      "Id": "pitch",
+      "Name": "Pitch",
+      "BitLength": 16,
+      "BitOffset": 24,
+      "BitStart": 0,
+      "Unit": "rad",
+      "Resolution": 0.0001,
+      "Signed": true,
+      "RangeMin": -3.2767,
+      "RangeMax": 3.2765,
+      "FieldType": "NUMBER",
+      "PhysicalQuantity": "ANGLE"
+    },
+    {
+      "Order": 4,
+      "Id": "roll",
+      "Name": "Roll",
+      "BitLength": 16,
+      "BitOffset": 40,
+      "BitStart": 0,
+      "Unit": "rad",
+      "Resolution": 0.0001,
+      "Signed": true,
+      "RangeMin": -3.2767,
+      "RangeMax": 3.2765,
+      "FieldType": "NUMBER",
+      "PhysicalQuantity": "ANGLE"
+    }
+  ]
+}

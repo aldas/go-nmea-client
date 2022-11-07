@@ -4,8 +4,9 @@
   "Description": "Vessel Heading",
   "Type": "Single",
   "Complete": true,
+  "FieldCount": 6,
   "Length": 8,
-  "RepeatingFields": 0,
+  "TransmissionInterval": 100,
   "Fields": [
     {
       "Order": 2,
@@ -14,9 +15,13 @@
       "BitLength": 16,
       "BitOffset": 8,
       "BitStart": 0,
-      "Units": "rad",
+      "Unit": "rad",
       "Resolution": 0.0001,
-      "Signed": false
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 6.5533,
+      "FieldType": "NUMBER",
+      "PhysicalQuantity": "ANGLE"
     },
     {
       "Order": 5,
@@ -25,26 +30,12 @@
       "BitLength": 2,
       "BitOffset": 56,
       "BitStart": 0,
-      "Type": "Lookup table",
+      "Resolution": 1,
       "Signed": false,
-      "EnumValues": [
-        {
-          "name": "True",
-          "value": "0"
-        },
-        {
-          "name": "Magnetic",
-          "value": "1"
-        },
-        {
-          "name": "Error",
-          "value": "2"
-        },
-        {
-          "name": "Null",
-          "value": "3"
-        }
-      ]
+      "RangeMin": 0,
+      "RangeMax": 2,
+      "FieldType": "LOOKUP",
+      "LookupEnumeration": "DIRECTION_REFERENCE"
     }
   ]
 }

@@ -4,123 +4,134 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aldas/go-nmea-client"
 	"io/fs"
 	"strconv"
 )
 
-// TODO: Canboat notes:
-// typedef struct
-//{
-//  char *   name;
-//  uint32_t size; /* Size in bits. All fields are contiguous in message; use 'reserved' fields to fill in empty bits. */
-//#define LEN_VARIABLE (0)
-//  double resolution; /* Either a positive real value or one of the following RES_ special values */
-//#define RES_NOTUSED (0)
-//#define RES_RADIANS (1e-4)
-//#define RES_ROTATION (1e-3 / 32.0)
-//#define RES_HIRES_ROTATION (1e-6 / 32.0)
-//#define RES_ASCII (-1.0)
-//#define RES_LATITUDE (-2.0)
-//#define RES_LONGITUDE (-3.0)
-//#define RES_DATE (-4.0)
-//#define RES_TIME (-5.0)
-//#define RES_TEMPERATURE (-6.0)
-//#define RES_6BITASCII (-7.0) /* Actually not used in N2K, only in N183 AIS */
-//#define RES_INTEGER (-8.0)
-//#define RES_LOOKUP (-9.0)
-//#define RES_BINARY (-10.0)
-//#define RES_MANUFACTURER (-11.0)
-//#define RES_STRING (-12.0)
-//#define RES_FLOAT (-13.0)
-//#define RES_PRESSURE (-14.0)
-//#define RES_STRINGLZ (-15.0) /* ASCII string starting with length byte and terminated by zero byte */
-//#define RES_STRINGLAU (-16.0) /* ASCII or UNICODE string starting with length byte and ASCII/Unicode byte */
-//#define RES_DECIMAL (-17.0)
-//#define RES_BITFIELD (-18.0)
-//#define RES_TEMPERATURE_HIGH (-19.0)
-//#define RES_TEMPERATURE_HIRES (-20.0)
-//#define RES_PRESSURE_HIRES (-21.0)
-//#define RES_VARIABLE (-22.0)
-//#define MAX_RESOLUTION_LOOKUP 22
-//
-//  bool  hasSign; /* Is the value signed, e.g. has both positive and negative values? */
-//  char *units;   /* String containing the 'Dimension' (e.g. s, h, m/s, etc.) unless it starts with , in which
-//                  * case it contains a set of lookup values.
-//                  */
-//  char *  description;
-//  int32_t offset;  /* Only used for SAE J1939 values with sign; these are in Offset/Excess-K notation instead
-//                    * of two's complement as used by NMEA 2000.
-//                    * See http://en.wikipedia.org/wiki/Offset_binary
-//                    */
-//  char *camelName; /* Filled by C, no need to set in initializers. */
-//} Field;
-
-// TODO: Canboat notes:
-// typedef struct
-//{
-//  char *     description;
-//  uint32_t   pgn;
-//  uint16_t   complete;        /* Either PACKET_COMPLETE or bit values set for various unknown items */
-//  PacketType type;            /* Single, Fast or ISO11783 */
-//  uint32_t   size;            /* (Minimal) size of this PGN. Helps to determine initial malloc */
-//  uint32_t   repeatingFields; /* How many fields at the end repeat until the PGN is exhausted? */
-//  Field      fieldList[30]; /* Note fixed # of fields; increase if needed. RepeatingFields support means this is enough for now. */
-//  uint32_t   fieldCount;    /* Filled by C, no need to set in initializers. */
-//  char *     camelDescription; /* Filled by C, no need to set in initializers. */
-//  bool       unknownPgn;       /* true = this is a catch-all for unknown PGNs */
-//} Pgn;
-
 // FieldType is type Canboat type field values
-type FieldType uint8
+type FieldType string
 
 const (
-	// FieldTypeUnknownReal denotes Canboat unknown type that is parsed as real/float.
-	FieldTypeUnknownReal FieldType = 0 // canboat: "" empty
-	// FieldTypeBitValues denotes Canboat Bit Enum type (bit to enum)
-	FieldTypeBitValues FieldType = 1 // canboat: "Bitfield"
-	// FieldTypeManufacturerCode denotes Canboat enum type for manufacturer codes
-	FieldTypeManufacturerCode FieldType = 2 // canboat: "Manufacturer code"
-	// FieldTypeEnumValue denotes Canboat enum type (int to enum)
-	FieldTypeEnumValue FieldType = 3 // canboat: "Lookup table"
-	// FieldTypeInteger denotes Canboat integer type
-	FieldTypeInteger FieldType = 4 // canboat: "Integer"
-	// FieldTypeBinaryData denotes Canboat binary data (is raw binary or we do not know actual schema for this block of bytes)
-	FieldTypeBinaryData FieldType = 5 // canboat: "Binary data"
-
-	// FieldTypeString is string start/stop byte or starting with len
-	// STRING format is <start=0x02> [ <data> ... ] <stop=0x01>
-	//                  <len> [ <data> ... ] (with len > 2)
-	//                  <stop>                                 zero length data
-	//                  <#00>  ???
-	FieldTypeString FieldType = 6 // canboat: "String with start/stop byte"
-
-	// FieldTypeStringLAU is ASCII or UNICODE string starting with length and control byte
-	// Format is <len> <control> [ <data> ... ]
-	// where <control> == 0 = UNICODE, but we don't know whether it is UTF16, UTF8, etc. Not seen in the wild yet!
-	//       <control> == 1 = ASCII(?) or maybe UTF8?
-	FieldTypeStringLAU FieldType = 7 // canboat: "ASCII or UNICODE string starting with length and control byte"
-
-	// FieldTypeStringLZ is "ASCII string starting with length byte"
-	// Format is <len> [ <data> ... ]
-	FieldTypeStringLZ FieldType = 8 // canboat: "ASCII string starting with length byte"
-
-	// FieldTypeASCII is a fixed length string (field->size)
-	FieldTypeASCII FieldType = 9 // canboat: "ASCII text"
-
-	// FieldTypeNibbleDecimal is number encoded as nibble decimal values.
-	// Decimal: 123456789 shall be encoded as 0x0C (=12), 0x22 (=34), 0x38 (=56), 0x4E (=78) and 0x5A (=90).
-	// See "PGN 129808 DSC Call Information" https://www.nmea.org/Assets/20130720%20%20dsc%20technical%20corrigendum%20v1..pdf
-	// Note: When displaying the MMSI the trailing zero should be removed.
-	FieldTypeNibbleDecimal FieldType = 10 // canboat: "Decimal encoded number"
+	// FieldTypeNumber - Binary numbers are little endian. Number fields that use two or three bits use one special
+	// encoding, for the maximum value.  When present, this means that the field is not present. Number fields that
+	// use four bits or more use two special encodings. The maximum positive value means that the field is not present.
+	// The maximum positive value minus 1 means that the field has an error. For instance, a broken sensor.
+	// For signed numbers the maximum values are the maximum positive value and that minus 1, not the all-ones bit
+	// encoding which is the maximum negative value. https://en.wikipedia.org/wiki/Binary_number
+	FieldTypeNumber FieldType = "NUMBER"
+	// FieldTypeFloat - 32 bit IEEE-754 floating point number. https://en.wikipedia.org/wiki/IEEE_754
+	FieldTypeFloat FieldType = "FLOAT"
+	// FieldTypeDecimal - A unsigned numeric value represented with 2 decimal digits per. Each byte represent 2 digits,
+	// so 1234 is represented by 2 bytes containing 0x12 and 0x34. A number with an odd number of digits will have 0
+	// as the first digit in the first byte. https://en.wikipedia.org/wiki/Binary-coded_decimal
+	FieldTypeDecimal FieldType = "DECIMAL"
+	// FieldTypeLookup - Number value where each value encodes for a distinct meaning. Each lookup has a
+	// LookupEnumeration defining what the possible values mean
+	FieldTypeLookup FieldType = "LOOKUP"
+	// FieldTypeIndirectLookup - Number value where each value encodes for a distinct meaning but the meaning also
+	// depends on the value in another field. Each lookup has a LookupIndirectEnumeration defining what the possible values mean.
+	FieldTypeIndirectLookup FieldType = "INDIRECT_LOOKUP"
+	// FieldTypeBitLookup - Number value where each bit value encodes for a distinct meaning. Each LookupBit has a
+	// LookupBitEnumeration defining what the possible values mean. A bitfield can have any combination of bits set.
+	FieldTypeBitLookup FieldType = "BITLOOKUP"
+	// FieldTypeTime - time https://en.wikipedia.org/wiki/Time
+	FieldTypeTime FieldType = "TIME"
+	// FieldTypeDate - The date, in days since 1 January 1970. https://en.wikipedia.org/wiki/Calendar_date
+	FieldTypeDate FieldType = "DATE"
+	// FieldTypeStringFix - A fixed length string containing single byte codepoints. The length of the string is
+	// determined by the PGN field definition. Trailing bytes have been observed as '@', ' ', 0x0 or 0xff.
+	FieldTypeStringFix FieldType = "STRING_FIX"
+	// FieldTypeStringVar - A varying length string containing single byte codepoints. The length of the string is
+	// determined either with a start (0x02) and stop (0x01) byte, or with a starting length byte (> 0x02), or an
+	// indication that the string is empty which is encoded by either 0x01 or 0x00 as the first byte.
+	FieldTypeStringVar FieldType = "STRING_VAR"
+	// FieldTypeStringLz - A varying length string containing single byte codepoints encoded with a length byte and
+	// terminating zero. The length of the string is determined by a starting length byte. It also contains a
+	// terminating zero byte. The length byte includes the zero byte but not itself.
+	FieldTypeStringLz FieldType = "STRING_LZ"
+	// FieldTypeStringLAU - A varying length string containing double or single byte codepoints encoded with a length
+	// byte and terminating zero. The length of the string is determined by a starting length byte. The 2nd byte
+	// contains 0 for UNICODE or 1 for ASCII.
+	FieldTypeStringLAU FieldType = "STRING_LAU"
+	// FieldTypeBinary - Unspecified content consisting of any number of bits.
+	FieldTypeBinary FieldType = "BINARY"
+	// FieldTypeReserved - Reserved field. All reserved bits shall be 1
+	FieldTypeReserved FieldType = "RESERVED"
+	// FieldTypeSpare - Spare field. All spare bits shall be 0
+	FieldTypeSpare FieldType = "SPARE"
+	// FieldTypeMMSI - The MMSI is encoded as a 32 bit number, but is always printed as a 9 digit number and
+	// should be considered as a string. The first three or four digits are special, see the USCG link for a detailed
+	// explanation.
+	FieldTypeMMSI FieldType = "MMSI"
+	// FieldTypeVariable - Variable. The definition of the field is that of the reference PGN and reference field,
+	// this is totally variable.
+	FieldTypeVariable FieldType = "VARIABLE"
 )
+
+var (
+	ErrUnsupportedFieldType = errors.New("unsupported field type")
+)
+
+// UnmarshalJSON custom unmarshalling function for FieldType.
+func (bv *FieldType) UnmarshalJSON(b []byte) error {
+	if b[0] == '"' && b[len(b)-1] == '"' {
+		b = b[1 : len(b)-1]
+	}
+	t := string(b)
+
+	var tmp FieldType
+	switch t {
+	case string(FieldTypeNumber), string(FieldTypeFloat), string(FieldTypeDecimal), string(FieldTypeLookup),
+		string(FieldTypeIndirectLookup),
+		string(FieldTypeBitLookup), string(FieldTypeTime), string(FieldTypeDate), string(FieldTypeStringFix),
+		string(FieldTypeStringVar), string(FieldTypeStringLz), string(FieldTypeStringLAU), string(FieldTypeBinary),
+		string(FieldTypeReserved), string(FieldTypeSpare), string(FieldTypeMMSI),
+		string(FieldTypeVariable):
+		tmp = FieldType(t)
+	default:
+		return fmt.Errorf("unknown FieldType value: `%v`", t)
+	}
+	*bv = tmp
+	return nil
+}
+
+type PacketType string
+
+const (
+	PacketTypeISO    PacketType = "ISO"  // including multi-packet messages send with ISO 11783-3 Transport Protocol
+	PacketTypeFast   PacketType = "Fast" // can have up to 223 bytes of payload data
+	PacketTypeSingle PacketType = "Single"
+)
+
+// UnmarshalJSON custom unmarshalling function for PacketType.
+func (pt *PacketType) UnmarshalJSON(b []byte) error {
+	if b[0] == '"' && b[len(b)-1] == '"' {
+		b = b[1 : len(b)-1]
+	}
+	t := string(b)
+
+	var tmp PacketType
+	switch t {
+	case string(PacketTypeISO), string(PacketTypeFast), string(PacketTypeSingle):
+		tmp = PacketType(t)
+	default:
+		return fmt.Errorf("unknown PacketType value: `%v`", t)
+	}
+	*pt = tmp
+	return nil
+}
 
 // CanboatSchema is root element for Canboat Json schema
 type CanboatSchema struct {
-	Comment     string `json:"Comment"`
-	CreatorCode string `json:"CreatorCode"`
-	License     string `json:"License"`
-	Version     string `json:"Version"`
-	PGNs        PGNs   `json:"PGNs"`
+	Comment       string                     `json:"Comment"`
+	CreatorCode   string                     `json:"CreatorCode"`
+	License       string                     `json:"License"`
+	Version       string                     `json:"Version"`
+	PGNs          PGNs                       `json:"PGNs"`
+	Enums         LookupEnumerations         `json:"LookupEnumerations"`
+	IndirectEnums LookupIndirectEnumerations `json:"LookupIndirectEnumerations"`
+	BitEnums      LookupBitEnumerations      `json:"LookupBitEnumerations"`
 }
 
 // LoadCANBoatSchema loads CANBoat PGN schema from JSON file
@@ -145,129 +156,313 @@ type PGNs []PGN
 
 // PGN is Parameter Group Number. A PGN identifies a message's function and how its data is structured.
 type PGN struct {
-	PGN              uint32   `json:"PGN"` // Note: PGN is not unique. Some PGNs have multiple different packets (field sets). pgn+first-field-value is sometimes unique
-	ID               string   `json:"Id"`
-	Description      string   `json:"Description"`
-	Type             string   `json:"Type"`     // ISO, Fast, Single
-	Complete         bool     `json:"Complete"` // false if Canboat schema is incomplete
-	MissingAttribute []string `json:"Missing"`  // Fields, FieldLengths, Precision, Lookups, SampleData
+	// Note: PGN is not unique. Some PGNs have multiple different packets (field sets). pgn+first-field-value is sometimes unique
+	PGN              uint32     `json:"PGN"`
+	ID               string     `json:"Id"`
+	Description      string     `json:"Description"`
+	Explanation      string     `json:"Explanation"`
+	URL              string     `json:"URL"`
+	Type             PacketType `json:"Type"`     // ISO, Fast, Single
+	Complete         bool       `json:"Complete"` // false if Canboat schema is incomplete
+	FieldCount       int16      `json:"FieldCount"`
+	MinLength        int16      `json:"MinLength"`
+	Length           int16      `json:"Length"`
+	MissingAttribute []string   `json:"Missing"` // Fields, FieldLengths, Precision, Lookups, SampleData
+
 	// RepeatingFields is number of fields that may or may not exist at the end of fields list.
-	RepeatingFields uint32 `json:"RepeatingFields"` // pgn.repeatingFields
 	// FIXME: investigate `The last %u and %u fields repeat until the data is exhausted`. Mostly related to PGN=126208, png type of function is defined by first field
-	RepeatingFields1 uint32 `json:"RepeatingFieldSet1"` // pgn.repeatingFields % 100
-	RepeatingFields2 uint32 `json:"RepeatingFieldSet2"` // pgn.repeatingFields / 100
-	// Length is (minimal) size of PGN message.
-	Length uint32  `json:"Length"`
+	RepeatingFieldSet1Size       int8 `json:"RepeatingFieldSet1Size"`
+	RepeatingFieldSet1StartField int8 `json:"RepeatingFieldSet1StartField"`
+	RepeatingFieldSet1CountField int8 `json:"RepeatingFieldSet1CountField"`
+
+	RepeatingFieldSet2Size       int8 `json:"RepeatingFieldSet2Size"`
+	RepeatingFieldSet2StartField int8 `json:"RepeatingFieldSet2StartField"`
+	RepeatingFieldSet2CountField int8 `json:"RepeatingFieldSet2CountField"`
+
+	TransmissionInterval  int16 `json:"TransmissionInterval"`
+	TransmissionIrregular bool  `json:"TransmissionIrregular"`
+
 	Fields []Field `json:"Fields"`
+
+	// synthetic fields
+
+	// IsMatchable denotes that PGNs contains Fields that are matchable.
+	IsMatchable bool
+}
+
+// UnmarshalJSON custom unmarshalling function for Field.
+func (p *PGN) UnmarshalJSON(b []byte) error {
+	type tmpPGN PGN
+	if err := json.Unmarshal(b, (*tmpPGN)(p)); err != nil {
+		return err
+	}
+	for _, f := range p.Fields {
+		if f.Match != 0 {
+			p.IsMatchable = true
+			break
+		}
+	}
+	return nil
+}
+
+func (p *PGN) IsMatch(rawData []byte) bool {
+	if !p.IsMatchable {
+		return false
+	}
+	for _, f := range p.Fields {
+		if f.Match == 0 {
+			continue
+		}
+		if ok := f.IsMatch(rawData); !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // Field is (possibly) one of many values packed into PGN packet data
 type Field struct {
-	ID            string         `json:"Id"`
-	Order         uint8          `json:"Order"`
-	Name          string         `json:"Name"`
-	Description   string         `json:"Description"`
-	BitLength     uint16         `json:"BitLength"`
-	BitOffset     uint16         `json:"BitOffset"`
-	BitStart      uint16         `json:"BitStart"`
-	Match         uint16         `json:"Match"`
-	Units         string         `json:"Units"`
-	Type          FieldType      `json:"Type"`
-	Resolution    float64        `json:"Resolution"` // 0 do nothing, negative = special cases (not in pgn.json), pos = is scale factor (value * res)
-	Signed        bool           `json:"Signed"`
-	Offset        int32          `json:"Offset"`
-	EnumValues    []EnumValue    `json:"EnumValues"`
-	EnumBitValues []EnumBitValue `json:"EnumBitValues"`
-	Reserved      bool
+	ID          string `json:"Id"`
+	Order       int8   `json:"Order"`
+	Name        string `json:"Name"`
+	Description string `json:"Description"`
+
+	Condition        string `json:"Condition"`
+	Match            int32  `json:"Match"`
+	Unit             string `json:"Unit"`
+	Format           string `json:"Format"`
+	PhysicalQuantity string `json:"PhysicalQuantity"`
+
+	BitLength         uint16  `json:"BitLength"`
+	BitOffset         uint16  `json:"BitOffset"`
+	BitLengthVariable bool    `json:"BitLengthVariable"`
+	Signed            bool    `json:"Signed"`
+	Offset            int32   `json:"Offset"`
+	Resolution        float64 `json:"Resolution"` // scale factor for parsed value. result = Offset + (parsedValue * Resolution)
+	RangeMin          float64 `json:"RangeMin"`
+	RangeMax          float64 `json:"RangeMax"`
+
+	FieldType                           FieldType `json:"FieldType"`
+	LookupEnumeration                   string    `json:"LookupEnumeration"`
+	LookupBitEnumeration                string    `json:"LookupBitEnumeration"`
+	LookupIndirectEnumeration           string    `json:"LookupIndirectEnumeration"`
+	LookupIndirectEnumerationFieldOrder int8      `json:"LookupIndirectEnumerationFieldOrder"`
 }
 
-// UnmarshalJSON custom unmarshalling function for Field.
-func (f *Field) UnmarshalJSON(b []byte) error {
-	type tmpField Field
-	if err := json.Unmarshal(b, (*tmpField)(f)); err != nil {
-		return err
-	}
-	if f.ID == "reserved" {
-		f.Reserved = true
+func (f *Field) Validate() error {
+	switch f.FieldType {
+	case FieldTypeStringLAU:
+		if !f.BitLengthVariable {
+			return fmt.Errorf("field id: %v of type STRING_LAU is not BitLengthVariable", f.ID)
+		}
+		if f.BitLength != 0 || f.BitOffset != 0 {
+			return fmt.Errorf("field id: %v should have BitLength=0 and BitOffset=0", f.ID)
+		}
+	case FieldTypeMMSI:
+		if f.BitLength != 32 {
+			return fmt.Errorf("field id: %v of type MSSI bit length is not 32 is %v", f.ID, f.BitLength)
+		}
+	case FieldTypeDate:
+		if f.BitLength != 16 {
+			return fmt.Errorf("field id: %v of type DATE bit length is not 16 is %v", f.ID, f.BitLength)
+		}
+	case FieldTypeLookup:
+		if f.LookupEnumeration == "" {
+			return fmt.Errorf("field id: %v of type %v has empty LookupEnumeration field", f.ID, FieldTypeLookup)
+		}
+	case FieldTypeIndirectLookup:
+		if f.LookupIndirectEnumeration == "" {
+			return fmt.Errorf("field id: %v of type %v has empty LookupIndirectEnumeration field", f.ID, FieldTypeIndirectLookup)
+		}
+	case FieldTypeBitLookup:
+		if f.LookupBitEnumeration == "" {
+			return fmt.Errorf("field id: %v of type %v has empty LookupBitEnumeration field", f.ID, FieldTypeBitLookup)
+		}
+		// FIXME: check if enum exists
 	}
 	return nil
 }
 
-// UnmarshalJSON custom unmarshalling function for FieldType.
-func (bv *FieldType) UnmarshalJSON(b []byte) error {
-	if b[0] == '"' && b[len(b)-1] == '"' {
-		b = b[1 : len(b)-1]
-	}
-	t := string(b)
-
-	var tmp FieldType
-	switch t {
-	case "Bitfield":
-		tmp = FieldTypeBitValues
-	case "Manufacturer code":
-		tmp = FieldTypeManufacturerCode
-	case "Lookup table":
-		tmp = FieldTypeEnumValue
-	case "Integer":
-		tmp = FieldTypeInteger
-	case "Binary data":
-		tmp = FieldTypeBinaryData
-	case "String with start/stop byte":
-		tmp = FieldTypeString
-	case "ASCII or UNICODE string starting with length and control byte":
-		tmp = FieldTypeStringLAU
-	case "ASCII string starting with length byte":
-		tmp = FieldTypeStringLZ
-	case "ASCII text":
-		tmp = FieldTypeASCII
-	case "Decimal encoded number":
-		tmp = FieldTypeNibbleDecimal
-
-	case "",
-		"Latitude",
-		"Longitude",
-		"Date",
-		"Time",
-		"Temperature",
-		"Temperature (hires)",
-		"Pressure",
-		"Pressure (hires)",
-		"IEEE Float":
-		tmp = FieldTypeUnknownReal
-	default:
-		return errors.New("unknown FieldType value")
-	}
-	*bv = tmp
-	return nil
+func (f *Field) IsMatch(rawData nmea.RawData) bool {
+	// we deliberately consider errors here as no match
+	value, err := rawData.DecodeVariableUint(f.BitOffset, f.BitLength)
+	return err == nil && uint64(f.Match) == value
 }
 
-// EnumValue is Enum type for CANbus schema.
-type EnumValue struct {
-	Value int64  `json:"value"`
-	Name  string `json:"name"`
+func (f *Field) Decode(rawData nmea.RawData, bitOffset uint16) (nmea.FieldValue, uint16, error) {
+	switch f.FieldType {
+	case FieldTypeNumber:
+		value, err := f.decodeNumber(rawData, bitOffset)
+		return value, f.BitLength, err
+	case FieldTypeLookup, FieldTypeIndirectLookup, FieldTypeBitLookup:
+		// Decoder will convert them to other Enum types if needed
+		value, err := f.decodeNumber(rawData, bitOffset)
+		return value, f.BitLength, err
+	case FieldTypeReserved, FieldTypeSpare, FieldTypeBinary:
+		return f.decodeBytes(rawData, bitOffset)
+	case FieldTypeTime:
+		value, err := f.decodeTime(rawData, bitOffset)
+		return value, f.BitLength, err
+	case FieldTypeMMSI:
+		value, err := f.decodeMMSI(rawData, bitOffset)
+		return value, f.BitLength, err
+	case FieldTypeStringFix:
+		value, err := f.decodeStringFIX(rawData, bitOffset)
+		return value, f.BitLength, err
+	case FieldTypeStringLz:
+		return f.decodeStringLZ(rawData, bitOffset)
+	case FieldTypeStringLAU:
+		return f.decodeStringLAU(rawData, bitOffset)
+	case FieldTypeDate:
+		value, err := f.decodeDate(rawData, bitOffset)
+		return value, f.BitLength, err
+	case FieldTypeDecimal:
+		value, err := f.decodeDecimal(rawData, bitOffset)
+		return value, f.BitLength, err
+	case FieldTypeFloat:
+		value, err := f.decodeFloat(rawData, bitOffset)
+		return value, f.BitLength, err
+	}
+	return nmea.FieldValue{}, 0, fmt.Errorf("field type: %v, err: %w", f.FieldType, ErrUnsupportedFieldType)
 }
 
-// UnmarshalJSON custom unmarshalling function for EnumValue.
-func (ev *EnumValue) UnmarshalJSON(b []byte) error {
-	tmp := make(map[string]string)
-	if err := json.Unmarshal(b, &tmp); err != nil {
-		return err
+func (f *Field) decodeNumber(rawData nmea.RawData, bitOffset uint16) (nmea.FieldValue, error) {
+	var tmpIntValue int64
+	var tmpUIntValue uint64
+	var err error
+	if f.Signed {
+		tmpIntValue, err = rawData.DecodeVariableInt(bitOffset, f.BitLength)
+	} else {
+		tmpUIntValue, err = rawData.DecodeVariableUint(bitOffset, f.BitLength)
 	}
-	name, ok := tmp["name"]
-	if !ok {
-		return fmt.Errorf("missing name field for EnumValue")
-	}
-	value, ok := tmp["value"]
-	if !ok {
-		return fmt.Errorf("missing value field for EnumValue")
-	}
-	tmpBit, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		return fmt.Errorf("failed to convert EnumValue value to int64: %w", err)
+		return nmea.FieldValue{}, err
 	}
-	ev.Value = tmpBit
-	ev.Name = name
-	return nil
+
+	var value interface{}
+	if f.Signed {
+		tmpIntValue += int64(f.Offset)
+		if f.Resolution == 1 {
+			return nmea.FieldValue{ID: f.ID, Type: "INT64", Value: tmpIntValue}, nil
+		}
+		value = float64(tmpIntValue) * f.Resolution
+	} else {
+		tmpUIntValue += uint64(f.Offset)
+		if f.Resolution == 1 {
+			return nmea.FieldValue{ID: f.ID, Type: "UINT64", Value: tmpUIntValue}, nil
+		}
+		value = float64(tmpUIntValue) * f.Resolution
+	}
+	return nmea.FieldValue{ID: f.ID, Type: "FLOAT64", Value: value}, nil
+}
+
+func (f *Field) decodeBytes(rawData nmea.RawData, bitOffset uint16) (nmea.FieldValue, uint16, error) {
+	value, bits, err := rawData.DecodeBytes(bitOffset, f.BitLength, f.BitLengthVariable)
+	if err != nil {
+		return nmea.FieldValue{}, 0, err
+	}
+	return nmea.FieldValue{
+		ID:    f.ID,
+		Type:  "BYTES",
+		Value: value,
+	}, bits, nil
+}
+
+func (f *Field) decodeTime(rawData nmea.RawData, bitOffset uint16) (nmea.FieldValue, error) {
+	value, err := rawData.DecodeTime(bitOffset, f.BitLength, f.Resolution)
+	if err != nil {
+		return nmea.FieldValue{}, err
+	}
+	return nmea.FieldValue{
+		ID:    f.ID,
+		Type:  "DURATION",
+		Value: value,
+	}, nil
+}
+
+func (f *Field) decodeDate(rawData nmea.RawData, bitOffset uint16) (nmea.FieldValue, error) {
+	str, err := rawData.DecodeDate(bitOffset, f.BitLength)
+	if err != nil {
+		return nmea.FieldValue{}, err
+	}
+	return nmea.FieldValue{
+		ID:    f.ID,
+		Type:  "TIME",
+		Value: str,
+	}, nil
+}
+
+func (f *Field) decodeMMSI(rawData nmea.RawData, bitOffset uint16) (nmea.FieldValue, error) {
+	mmsi, err := rawData.DecodeVariableUint(bitOffset, f.BitLength)
+	if err != nil {
+		return nmea.FieldValue{}, err
+	}
+	// FIXME: should we validate that MMSI is in range of 0 to 999_999_999
+	return nmea.FieldValue{
+		ID:    f.ID,
+		Type:  "UINT64",
+		Value: mmsi,
+	}, nil
+}
+
+func (f *Field) decodeStringFIX(rawData nmea.RawData, bitOffset uint16) (nmea.FieldValue, error) {
+	str, err := rawData.DecodeStringFix(bitOffset, f.BitLength)
+	if err != nil {
+		return nmea.FieldValue{}, err
+	}
+	return nmea.FieldValue{
+		ID:    f.ID,
+		Type:  "STRING",
+		Value: str,
+	}, nil
+}
+
+func (f *Field) decodeStringLZ(rawData nmea.RawData, bitOffset uint16) (nmea.FieldValue, uint16, error) {
+	str, readBits, err := rawData.DecodeStringLZ(bitOffset, f.BitLength)
+	if err != nil {
+		return nmea.FieldValue{}, 0, err
+	}
+	return nmea.FieldValue{
+		ID:    f.ID,
+		Type:  "STRING",
+		Value: str,
+	}, readBits, nil
+}
+
+func (f *Field) decodeStringLAU(rawData nmea.RawData, bitOffset uint16) (nmea.FieldValue, uint16, error) {
+	str, readBits, err := rawData.DecodeStringLAU(bitOffset)
+	if err != nil {
+		return nmea.FieldValue{}, 0, err
+	}
+	return nmea.FieldValue{
+		ID:    f.ID,
+		Type:  "STRING",
+		Value: str,
+	}, readBits, nil
+}
+
+func (f *Field) decodeDecimal(rawData nmea.RawData, bitOffset uint16) (nmea.FieldValue, error) {
+	decimal, err := rawData.DecodeDecimal(bitOffset, f.BitLength)
+	if err != nil {
+		return nmea.FieldValue{}, err
+	}
+	return nmea.FieldValue{
+		ID:    f.ID,
+		Type:  "UINT64",
+		Value: decimal,
+	}, nil
+}
+
+func (f *Field) decodeFloat(rawData nmea.RawData, bitOffset uint16) (nmea.FieldValue, error) {
+	float, err := rawData.DecodeFloat(bitOffset, f.BitLength)
+	if err != nil {
+		return nmea.FieldValue{}, err
+	}
+	return nmea.FieldValue{
+		ID:    f.ID,
+		Type:  "FLOAT64",
+		Value: float,
+	}, nil
 }
 
 // EnumBitValue is Enum type for Canbus schema.
@@ -294,12 +489,49 @@ func (bv *EnumBitValue) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// FindByPGN returns PGN object by its PGN value
-func (pgns *PGNs) FindByPGN(pgn uint32) (PGN, bool) {
+// FilterByPGN returns list of matching PGN objects that match by PGN value
+func (pgns *PGNs) FilterByPGN(pgn uint32) PGNs {
+	result := PGNs{}
 	for _, p := range *pgns {
 		if p.PGN == pgn {
-			return p, true
+			result = append(result, p)
+		}
+	}
+	return result
+}
+
+func (pgns *PGNs) Match(rawData []byte) (PGN, bool) {
+	for _, pgn := range *pgns {
+		if !pgn.IsMatchable {
+			continue
+		}
+		if ok := pgn.IsMatch(rawData); ok {
+			return pgn, true
 		}
 	}
 	return PGN{}, false
+}
+
+func (pgns *PGNs) Validate() []error {
+	result := make([]error, 0)
+	for _, pgn := range *pgns {
+		// RULE: field.ID must be unique within PGN
+		fields := map[string]Field{}
+		for _, f := range pgn.Fields {
+			_, ok := fields[f.ID]
+			if ok {
+				result = append(result, fmt.Errorf("PGN %v has duplicate field ID: %v", pgn.PGN, f.ID))
+			}
+		}
+		// Usual field validations
+		for _, f := range pgn.Fields {
+			if err := f.Validate(); err != nil {
+				result = append(result, err)
+			}
+		}
+	}
+	if len(result) > 0 {
+		return result
+	}
+	return nil
 }

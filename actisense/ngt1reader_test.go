@@ -13,35 +13,8 @@ import (
 	"time"
 )
 
-// sent by Simrad GS25 and read with NGT-1
-var exampleRawMessages = map[uint32]string{
-	// 129026 COG & SOG, Rapid Update
-	129026: "93130202f801ff7fae3a0a090800fcffff0000ffffe4",
-	// 129025 position rapid update
-	129025: "93130201f801ff7faf3a0a0908e715b322c318590dca",
-	// 129540 GNSS Sats in View
-	129540: "939e0604fa01ff7f0c3d0a099300ff0c010b02ba02740e00000000f2022206725f8c0a00000000f203ae007314100e00000000" +
-		"f206510e504ae40c00000000f20a0000d9bc340800000000f20ce728c2a9980800000000f20fba02f1846c0700000000f211c5" +
-		"136821941100000000f2136821b92f740e00000000f216c50468033c0f00000000f218a22b4375f00a00000000f252f31bff1d3c0f00000000f214",
-	// 126992 System Time
-	126992: "93130310f001ff7f193d0a090800f04949d8343e0f8c",
-	// 127250 vessel heading
-	127250: "93130212f101ff80af3a0a090800fde3ff7f3005fd41",
-	// 127251 Rate of Turn
-	127251: "93130313f101ff80b03a0a090800599b1c0000ffffc0",
-	// 129029 GNSS Position Data
-	129029: "93360305f801ff7f083d0a092b004949d8343e0f00463eb928411408a064944bd69a1b03f0d8ffffffffffff12fc003c005a00ac08000000fd",
-	// 129539 GNSS DOPs
-	129539: "93130603fa01ff7f193d0a090800d33c004600ff7f94",
-	// 127258 Magnetic Variation
-	127258: "9313071af101ff7f1a3d0a090800f6ffff3005ffff30",
-	// 127257 Attitude
-	127257: "93130319f101ff801a3d0a090800ff7f00fe2ff6ffbb",
-	// NGT1 specific message
-	3585: "a022f2010e00708503000000000002050200000000000000000c5a020200000004000000ce",
-}
-
 func TestParseRawMessages(t *testing.T) {
+	now := time.Unix(1623928400, 0)
 	var testCases = []struct {
 		name        string
 		when        string
@@ -52,38 +25,44 @@ func TestParseRawMessages(t *testing.T) {
 			name: "ok, 129025, position rapid update",
 			when: "93130201f801ff7faf3a0a0908e715b322c318590dca",
 			expect: nmea.RawMessage{
-				Priority:    0x2,       // 2
-				PGN:         0x1f801,   // 129025
-				Destination: 0xff,      // 255
-				Source:      0x7f,      // 127
-				Timestamp:   0x90a3aaf, // 151665327
-				Length:      0x8,       // 8
-				Data:        []uint8{0xe7, 0x15, 0xb3, 0x22, 0xc3, 0x18, 0x59, 0xd},
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    0x2,     // 2
+					PGN:         0x1f801, // 129025
+					Destination: 0xff,    // 255
+					Source:      0x7f,    // 127
+				},
+				//Timestamp:   0x90a3aaf, // 151665327
+				Data: []uint8{0xe7, 0x15, 0xb3, 0x22, 0xc3, 0x18, 0x59, 0xd},
 			},
 		},
 		{
 			name: "ok, 127250, vessel heading",
 			when: "93130212f101ff80af3a0a090800fde3ff7f3005fd41",
 			expect: nmea.RawMessage{
-				Priority:    0x2,                                                   // 2
-				PGN:         0x1f112,                                               // 127250
-				Destination: 0xff,                                                  // 255
-				Source:      0x80,                                                  // 128
-				Timestamp:   0x90a3aaf,                                             // 151665327
-				Length:      0x8,                                                   // 8
-				Data:        []uint8{0x0, 0xfd, 0xe3, 0xff, 0x7f, 0x30, 0x5, 0xfd}, // 00 fd e3 ff 7f 30 05 fd
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    0x2,     // 2
+					PGN:         0x1f112, // 127250
+					Destination: 0xff,    // 255
+					Source:      0x80,    // 128
+				},
+				//Timestamp:   0x90a3aaf,                                             // 151665327
+				Data: []uint8{0x0, 0xfd, 0xe3, 0xff, 0x7f, 0x30, 0x5, 0xfd}, // 00 fd e3 ff 7f 30 05 fd
 			},
 		},
 		{
 			name: "ok, 129029, GNSS Position Data",
 			when: "93360305f801ff7f083d0a092b004949d8343e0f00463eb928411408a064944bd69a1b03f0d8ffffffffffff12fc003c005a00ac08000000fd",
 			expect: nmea.RawMessage{
-				Priority:    0x3,       // 3
-				PGN:         0x1f805,   // 129029
-				Destination: 0xff,      // 255
-				Source:      0x7f,      // 127
-				Timestamp:   0x90a3d08, // 151665928
-				Length:      0x2b,      // 43
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    0x3,     // 3
+					PGN:         0x1f805, // 129029
+					Destination: 0xff,    // 255
+					Source:      0x7f,    // 127
+				},
+				//Timestamp:   0x90a3d08, // 151665928
 				Data: []uint8{
 					0x0, 0x49, 0x49, 0xd8, 0x34, 0x3e, 0xf, 0x0, 0x46, 0x3e,
 					0xb9, 0x28, 0x41, 0x14, 0x8, 0xa0, 0x64, 0x94, 0x4b, 0xd6,
@@ -101,13 +80,15 @@ func TestParseRawMessages(t *testing.T) {
 			name: "ok, 129026, COG & SOG, Rapid Update",
 			when: "93130202f801ff7f15baf1460800fcffff0000ffffd90000",
 			expect: nmea.RawMessage{
-				Priority:    2,
-				PGN:         129026,
-				Destination: 255,
-				Source:      127,
-				Timestamp:   0x46f1ba15, // 2007-09-20T03:08:53+03:00
-				Length:      8,
-				Data:        []uint8{0x0, 0xfc, 0xff, 0xff, 0x0, 0x0, 0xff, 0xff},
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    2,
+					PGN:         129026,
+					Destination: 255,
+					Source:      127,
+				},
+				//Timestamp:   0x46f1ba15, // 2007-09-20T03:08:53+03:00
+				Data: []uint8{0x0, 0xfc, 0xff, 0xff, 0x0, 0x0, 0xff, 0xff},
 			},
 		},
 		{
@@ -118,13 +99,15 @@ func TestParseRawMessages(t *testing.T) {
 			name: "ok, 129025, Position, Rapid Update",
 			when: "93130201f801ff7f15baf146081e17b3224919590d000000",
 			expect: nmea.RawMessage{
-				Priority:    2,
-				PGN:         129025,
-				Destination: 255,
-				Source:      127,
-				Timestamp:   0x46f1ba15, // 2007-09-20T03:08:53+03:00
-				Length:      8,
-				Data:        []uint8{0x1e, 0x17, 0xb3, 0x22, 0x49, 0x19, 0x59, 0xd},
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    2,
+					PGN:         129025,
+					Destination: 255,
+					Source:      127,
+				},
+				//Timestamp:   0x46f1ba15, // 2007-09-20T03:08:53+03:00
+				Data: []uint8{0x1e, 0x17, 0xb3, 0x22, 0x49, 0x19, 0x59, 0xd},
 			},
 		},
 		{
@@ -135,13 +118,15 @@ func TestParseRawMessages(t *testing.T) {
 			name: "ok, 127250, Vessel Heading",
 			when: "93130212f101ff8016baf1460800bdeeff7f3105fd6a0000",
 			expect: nmea.RawMessage{
-				Priority:    2,
-				PGN:         127250,
-				Destination: 255,
-				Source:      128,
-				Timestamp:   0x46f1ba16,
-				Length:      8,
-				Data:        []uint8{0x0, 0xbd, 0xee, 0xff, 0x7f, 0x31, 0x5, 0xfd},
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    2,
+					PGN:         127250,
+					Destination: 255,
+					Source:      128,
+				},
+				//Timestamp:   0x46f1ba16,
+				Data: []uint8{0x0, 0xbd, 0xee, 0xff, 0x7f, 0x31, 0x5, 0xfd},
 			},
 		},
 		{
@@ -152,13 +137,15 @@ func TestParseRawMessages(t *testing.T) {
 			name: "ok, 127251, Rate of Turn",
 			when: "93130313f101ff8017baf1460800f2e61d0000ffffd00000",
 			expect: nmea.RawMessage{
-				Priority:    3,
-				PGN:         127251,
-				Destination: 255,
-				Source:      128,
-				Timestamp:   0x46f1ba17,
-				Length:      8,
-				Data:        []uint8{0x0, 0xf2, 0xe6, 0x1d, 0x0, 0x0, 0xff, 0xff},
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    3,
+					PGN:         127251,
+					Destination: 255,
+					Source:      128,
+				},
+				//Timestamp:   0x46f1ba17,
+				Data: []uint8{0x0, 0xf2, 0xe6, 0x1d, 0x0, 0x0, 0xff, 0xff},
 			},
 		},
 		{
@@ -169,12 +156,14 @@ func TestParseRawMessages(t *testing.T) {
 			name: "ok, 129029, GNSS Position Data",
 			when: "93360305f801ff7f0cbcf1462b005549b8d94e108032064a71411408009add56f59a1b03501517010000000012fc000e019a01ac08000000ce0000",
 			expect: nmea.RawMessage{
-				Priority:    3,
-				PGN:         129029,
-				Destination: 255,
-				Source:      127,
-				Timestamp:   0x46f1bc0c,
-				Length:      0x2b,
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    3,
+					PGN:         129029,
+					Destination: 255,
+					Source:      127,
+				},
+				//Timestamp:   0x46f1bc0c,
 				Data: []uint8{
 					0x0, 0x55, 0x49, 0xb8, 0xd9, 0x4e, 0x10, 0x80, 0x32, 0x6,
 					0x4a, 0x71, 0x41, 0x14, 0x8, 0x0, 0x9a, 0xdd, 0x56, 0xf5,
@@ -192,12 +181,14 @@ func TestParseRawMessages(t *testing.T) {
 			name: "ok, 129540, GNSS Sats in View",
 			when: "93920604fa01ff7f10bcf1468700ff0b02961a72501c0c00000000f203d106ae00480d00000000f206e819c431740e00000000f20c39375b4cfc0800000000f213f40c7323d80e00000000f256d1060b116c0700000000f21d390af1936c0700000000f020c5131fba140500000000f046f40c58f16c0700000000f04d8b18cf51dc0500000000f05700000000f00a00000000f07a0000",
 			expect: nmea.RawMessage{
-				Priority:    6,
-				PGN:         129540,
-				Destination: 255,
-				Source:      127,
-				Timestamp:   0x46f1bc10,
-				Length:      0x87,
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    6,
+					PGN:         129540,
+					Destination: 255,
+					Source:      127,
+				},
+				//Timestamp:   0x46f1bc10,
 				Data: []uint8{
 					0x0, 0xff, 0xb, 0x2, 0x96, 0x1a, 0x72, 0x50, 0x1c, 0xc,
 					0x0, 0x0, 0x0, 0x0, 0xf2, 0x3, 0xd1, 0x6, 0xae, 0x0, 0x48,
@@ -223,13 +214,15 @@ func TestParseRawMessages(t *testing.T) {
 			name: "ok, 126992, System Time",
 			when: "93130310f001ff7f1bbcf1460800f05549b8d94e1045",
 			expect: nmea.RawMessage{
-				Priority:    3,
-				PGN:         126992,
-				Destination: 255,
-				Source:      127,
-				Timestamp:   0x46f1bc1b,
-				Length:      8,
-				Data:        []uint8{0x0, 0xf0, 0x55, 0x49, 0xb8, 0xd9, 0x4e, 0x10},
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    3,
+					PGN:         126992,
+					Destination: 255,
+					Source:      127,
+				},
+				//Timestamp:   0x46f1bc1b,
+				Data: []uint8{0x0, 0xf0, 0x55, 0x49, 0xb8, 0xd9, 0x4e, 0x10},
 			},
 		},
 		{
@@ -240,13 +233,15 @@ func TestParseRawMessages(t *testing.T) {
 			name: "ok, 129539, GNSS DOPs",
 			when: "93130603fa01ff7f1cbcf1460800d30e013601ff7f2a",
 			expect: nmea.RawMessage{
-				Priority:    6,
-				PGN:         129539,
-				Destination: 255,
-				Source:      127,
-				Timestamp:   0x46f1bc1c,
-				Length:      8,
-				Data:        []uint8{0x0, 0xd3, 0xe, 0x1, 0x36, 0x1, 0xff, 0x7f},
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    6,
+					PGN:         129539,
+					Destination: 255,
+					Source:      127,
+				},
+				//Timestamp:   0x46f1bc1c,
+				Data: []uint8{0x0, 0xd3, 0xe, 0x1, 0x36, 0x1, 0xff, 0x7f},
 			},
 		},
 		{
@@ -257,13 +252,15 @@ func TestParseRawMessages(t *testing.T) {
 			name: "ok, 127258, Magnetic Variation",
 			when: "9313071af101ff7f1dbcf1460800f6ffff3105ffff89",
 			expect: nmea.RawMessage{
-				Priority:    7,
-				PGN:         127258,
-				Destination: 255,
-				Source:      127,
-				Timestamp:   0x46f1bc1d,
-				Length:      8,
-				Data:        []uint8{0x0, 0xf6, 0xff, 0xff, 0x31, 0x5, 0xff, 0xff},
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    7,
+					PGN:         127258,
+					Destination: 255,
+					Source:      127,
+				},
+				//Timestamp:   0x46f1bc1d,
+				Data: []uint8{0x0, 0xf6, 0xff, 0xff, 0x31, 0x5, 0xff, 0xff},
 			},
 		},
 		{
@@ -274,39 +271,45 @@ func TestParseRawMessages(t *testing.T) {
 			name: "ok, 127257, Attitude",
 			when: "93130319f101ff801dbcf1460800ff7f77fcecf9ffe0",
 			expect: nmea.RawMessage{
-				Priority:    3,
-				PGN:         127257,
-				Destination: 255,
-				Source:      128,
-				Timestamp:   0x46f1bc1d,
-				Length:      8,
-				Data:        []uint8{0x0, 0xff, 0x7f, 0x77, 0xfc, 0xec, 0xf9, 0xff},
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    3,
+					PGN:         127257,
+					Destination: 255,
+					Source:      128,
+				},
+				//Timestamp:   0x46f1bc1d,
+				Data: []uint8{0x0, 0xff, 0x7f, 0x77, 0xfc, 0xec, 0xf9, 0xff},
 			},
 		},
 		{
 			name: "ok, 130827, Lowrance: unknown",
 			when: "9310070bff01ff08af172e00053f9f0200006b",
 			expect: nmea.RawMessage{
-				Priority:    0x7,
-				PGN:         130827, // 0x1ff0b
-				Destination: 0xff,
-				Source:      0x8,
-				Timestamp:   3020719, // 0x2e17af,
-				Length:      0x5,
-				Data:        []uint8{0x3f, 0x9f, 0x2, 0x0, 0x0},
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    0x7,
+					PGN:         130827, // 0x1ff0b
+					Destination: 0xff,
+					Source:      0x8,
+				},
+				//Timestamp:   3020719, // 0x2e17af,
+				Data: []uint8{0x3f, 0x9f, 0x2, 0x0, 0x0},
 			},
 		},
 		{
 			name: "ok, 126208",
 			when: "93110300ed01080353a07200060200ef01010002",
 			expect: nmea.RawMessage{
-				Priority:    0x3,
-				PGN:         126208, // 0x1ed00
-				Destination: 0x8,
-				Source:      0x3,
-				Timestamp:   0x72a053, // 7512147
-				Length:      0x6,
-				Data:        []uint8{0x2, 0x0, 0xef, 0x1, 0x1, 0x0},
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    0x3,
+					PGN:         126208, // 0x1ed00
+					Destination: 0x8,
+					Source:      0x3,
+				},
+				//Timestamp:   0x72a053, // 7512147
+				Data: []uint8{0x2, 0x0, 0xef, 0x1, 0x1, 0x0},
 			},
 		},
 	}
@@ -316,7 +319,7 @@ func TestParseRawMessages(t *testing.T) {
 			raw, err := hex.DecodeString(tc.when)
 			assert.NoError(t, err)
 
-			result, err := fromNmea2000Message(raw, time.Unix(1623928400, 0))
+			result, err := fromActisenseBinaryMessage(raw, now)
 
 			assert.Equal(t, tc.expect, result)
 			if tc.expectError != "" {

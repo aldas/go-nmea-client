@@ -1,0 +1,9 @@
+# Create file `/etc/udev/rules.d/90-actisense.rules` with this file contents
+# And load you changes with `sudo udevadm control --reload-rules && sudo udevadm trigger`
+# Your NGT-1 should now be accessible from `/dev/actisense-ngt1`
+
+# -----------------------------------------
+ACTION=="add", SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="d9aa", SYMLINK+="actisense-ngt1"
+
+# You could add `, GROUP="$GROUP", MODE="0660"` to make readable/writable for your specific $GROUP
+# To identify specific device use `, ATTRS{serial}=="38570"` to match device serial number (38570 in this example)
