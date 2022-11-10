@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/aldas/go-nmea-client/actisense"
@@ -19,8 +20,11 @@ func main() {
 	printRaw := flag.Bool("raw", false, "prints raw message")
 	onlyRaw := flag.Bool("raw-only", false, "prints only raw message (does not parse to pgn)")
 	noShowPNG := flag.Bool("np", false, "do not print parsed PNGs")
+	isFile := flag.Bool("is-file", false, "consider device as ordinary file")
+	inputFormat := flag.String("input-format", "ngt", "in which format packet are read (ngt,n2k-ascii)")
 	deviceAddr := flag.String("device", "/dev/ttyUSB0", "path to Actisense NGT-1 USB device")
 	pgnsPath := flag.String("pgns", "", "path to Canboat pgns.json file")
+	outputFormat := flag.String("output-format", "json", "in which format raw and decoded packet should be printed out (json, canboat)")
 	baudRate := flag.Int("baud", 115200, "device baud rate.")
 	flag.Parse()
 
@@ -43,28 +47,54 @@ func main() {
 		decoder = canboat.NewDecoder(schema)
 	}
 
-	stream, err := serial.OpenPort(&serial.Config{
-		Name: *deviceAddr,
-		Baud: *baudRate,
-		// ReadTimeout is duration that Read call is allowed to block. Device has different timeout for situation when
-		// there is no activity on bus. Can not be smaller than 100ms
-		ReadTimeout: 100 * time.Millisecond,
-		Size:        8,
-	})
+	switch *inputFormat {
+	case "ngt", "n2k-ascii":
+	default:
+		log.Fatal("unknown input format type given\n")
+	}
+
+	switch *outputFormat {
+	case "json", "canboat":
+	default:
+		log.Fatal("unknown output format type given\n")
+	}
+
+	var reader io.ReadWriteCloser
+	var err error
+	if *isFile {
+		reader, err = os.OpenFile(*deviceAddr, os.O_RDONLY, 0)
+	} else {
+		reader, err = serial.OpenPort(&serial.Config{
+			Name: *deviceAddr,
+			Baud: *baudRate,
+			// ReadTimeout is duration that Read call is allowed to block. Device has different timeout for situation when
+			// there is no activity on bus. Can not be smaller than 100ms
+			ReadTimeout: 100 * time.Millisecond,
+			Size:        8,
+		})
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer stream.Close()
+	defer reader.Close()
 
 	config := actisense.Config{
-		ReceiveDataTimeout: 5 * time.Second,
+		ReceiveDataTimeout:      5 * time.Second,
+		DebugLogRawMessageBytes: *printRaw, // || *onlyRaw // FIXME
 	}
-	device := actisense.NewNGT1DeviceWithConfig(stream, config)
-	device.DebugLogRawMessageBytes = *printRaw // || *onlyRaw // FIXME
+	var device actisense.RawMessageReader
+	switch *inputFormat {
+	case "ngt":
+		device = actisense.NewNGT1DeviceWithConfig(reader, config)
+	case "n2k-ascii":
+		device = actisense.NewN2kASCIIDevice(reader, config)
+	}
 
-	fmt.Printf("# Initializing device: %v\n", *deviceAddr)
-	if err := device.Initialize(); err != nil {
-		log.Fatal(err)
+	if !*isFile {
+		fmt.Printf("# Initializing device: %v\n", *deviceAddr)
+		if err := device.Initialize(); err != nil {
+			log.Fatal(err)
+		}
 	}
 	fmt.Printf("# Starting to read device: %v\n", *deviceAddr)
 	time.Sleep(1 * time.Second)
@@ -72,8 +102,11 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
+	msgCount := uint64(0)
+	errorCount := uint64(0)
 	for {
 		rawMessage, err := device.ReadRawMessage(ctx)
+		msgCount++
 		if err == io.EOF {
 			break
 		}
@@ -84,26 +117,47 @@ func main() {
 			log.Fatal(err)
 		}
 		if *onlyRaw {
-			fmt.Printf("{time: \"%v\", pgn: %v, src: %v, dst: %v, p: %v data: %#v}\n",
-				rawMessage.Time.Format(time.RFC3339Nano),
-				rawMessage.Header.PGN,
-				rawMessage.Header.Source,
-				rawMessage.Header.Destination,
-				rawMessage.Header.Priority,
-				rawMessage.Data.AsHex(),
-			)
+			var b []byte
+			switch *outputFormat {
+			case "json":
+				b, _ = json.Marshal(rawMessage)
+			case "canboat":
+				b, _ = canboat.MarshalRawMessage(rawMessage)
+			}
+			fmt.Printf("%s\n", b)
 			continue
 		}
 
-		_, err = decoder.Decode(rawMessage)
+		pgn, err := decoder.Decode(rawMessage)
 		if err != nil {
-			fmt.Printf("# uknown PGN: %v: %#v\n", rawMessage.Header.PGN, rawMessage)
+			errorCount++
+			var b []byte
+			switch *outputFormat {
+			case "json":
+				b, _ = json.Marshal(rawMessage)
+			case "canboat":
+				b, _ = canboat.MarshalRawMessage(rawMessage)
+			}
+			fmt.Printf("# unknown PGN: %v (msgCount: %v, errCount: %v)\n", rawMessage.Header.PGN, msgCount, errorCount)
+			fmt.Printf("%s\n", b)
 			continue
 		}
 
 		if *noShowPNG {
 			continue
 		}
-		// TODO print decoded message
+
+		var b []byte
+		switch *outputFormat {
+		case "json":
+			b, err = json.Marshal(pgn)
+		case "canboat":
+			b, _ = canboat.MarshalRawMessage(rawMessage) // FIXME: as raw and not as canboat json
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("%s\n", b)
 	}
+	fmt.Printf("# Finishing, number of processed messages: %v, errors: %v\n", msgCount, errorCount)
 }

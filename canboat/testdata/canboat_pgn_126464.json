@@ -1,0 +1,41 @@
+{
+  "PGN": 126464,
+  "Id": "pgnListTransmitAndReceive",
+  "Description": "PGN List (Transmit and Receive)",
+  "Type": "Fast",
+  "Complete": true,
+  "FieldCount": 2,
+  "MinLength": 1,
+  "RepeatingFieldSet1Size": 1,
+  "RepeatingFieldSet1StartField": 2,
+  "TransmissionIrregular": true,
+  "Fields": [
+    {
+      "Order": 1,
+      "Id": "functionCode",
+      "Name": "Function Code",
+      "BitLength": 8,
+      "BitOffset": 0,
+      "BitStart": 0,
+      "Resolution": 1,
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 253,
+      "FieldType": "LOOKUP",
+      "LookupEnumeration": "PGN_LIST_FUNCTION"
+    },
+    {
+      "Order": 2,
+      "Id": "pgn",
+      "Name": "PGN",
+      "BitLength": 24,
+      "BitOffset": 8,
+      "BitStart": 0,
+      "Resolution": 1,
+      "Signed": false,
+      "RangeMin": 0,
+      "RangeMax": 16777213,
+      "FieldType": "NUMBER"
+    }
+  ]
+}

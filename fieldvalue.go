@@ -37,7 +37,16 @@ type FieldValues []FieldValue
 type FieldValue struct {
 	ID   string `json:"id"`
 	Type string `json:"type"`
-	// normalized to: string, float64, int64, uint64, []byte, time.Duration, time.Time, nmea.EnumValue, []nmea.EnumValue
+	// normalized to:
+	// * string,
+	// * float64,
+	// * int64,
+	// * uint64,
+	// * []byte,
+	// * time.Duration,
+	// * time.Time,
+	// * nmea.EnumValue,
+	// * [][]nmea.EnumValue <-- for repeating fieldsets/groups
 	Value interface{} `json:"value"`
 }
 

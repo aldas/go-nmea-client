@@ -9,6 +9,11 @@ Go client to read NMEA 2000 messages from canbus interfaces or usb devices
 
 ## TODO
 
+* Canboat Field type `VARIABLE` printing. This field has value as integer that references other PGN field by their order.
+* Assembling of ISO TP and Fastpacket frames into complete message
+* Better test coverage
+
+
 Research/check following libraries:
 
 * CAN libraries
@@ -34,7 +39,33 @@ Useful links:
 
 ## Useful commands
 
-Create Actisense reader that can be run on Teltonika RUT955 router (CPU: Atheros Wasp, MIPS 74Kc, 550 MHz)
+### Actisense reader utility
+
+Build command line utility for your current arch
+```bash 
+make actisense
+```
+
+Create Actisense reader that can be run on MIPS architecture (Teltonika RUT955 router ,CPU: Atheros Wasp, MIPS 74Kc, 550 MHz)
 ```bash
 GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags="-s -w" -o actisense-reader-mips cmd/actisense/main.go
 ```
+
+Help about arguments:
+```bash
+./actisense-reader -help
+```
+
+Example usage:
+```bash 
+./actisense-reader -pgns=canboat/testdata/canboat.json \
+   -device="actisense/testdata/actisense_n2kascii_20221028_10s.txt" \
+   -is-file=true \
+   -output-format=json \
+   -input-format=n2k-ascii
+```
+This is instructs reader to treat device `actisense/testdata/actisense_n2kascii_20221028_10s.txt` as an ordinary file instead
+of serial device. All input read from device is decoded as `Actisense N2K` binary protocol (Actisense [W2K-1](https://actisense.com/products/w2k-1-nmea-2000-wifi-gateway/) device can output this)
+and print output in JSON format.
+
+

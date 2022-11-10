@@ -663,10 +663,141 @@ func TestDecoder_Decode(t *testing.T) {
 					{ID: "expansionEnabled", Type: "UINT64", Value: uint64(1)},
 					{ID: "callingRxFrequencyChannel", Type: "STRING", Value: ""},
 					{ID: "callingTxFrequencyChannel", Type: "STRING", Value: ""},
-					{ID: "dscExpansionFieldSymbol", Type: "UINT64", Value: uint64(100)},
-					{ID: "dscExpansionFieldData", Type: "STRING", Value: "08"},
+					{ID: "FIELDSET_1", Type: "FIELDSET", Value: [][]nmea.FieldValue{
+						{
+							{ID: "dscExpansionFieldSymbol", Type: "UINT64", Value: uint64(100)},
+							{ID: "dscExpansionFieldData", Type: "STRING", Value: "08"},
+						},
+					}},
 				},
 			},
+		},
+		{
+			// echo "2022-11-08T14:59:10.902833579+02:00,3,129029,127,255,43,00,49,49,88,53,42,0f,80,c0,83,9e,25,41,14,08,60,7d,03,57,db,9a,1b,03,e0,22,02,00,00,00,00,00,12,fc,00,3c,00,5a,00,ac,08,00,00,00" | ./rel/linux-x86_64/analyzer -json -si
+			//{"timestamp":"2022-11-08T14:59:10.902833579+02:00","prio":3,"src":127,"dst":255,"pgn":129029,"description":"GNSS Position Data",
+			//"fields":{
+			//"SID":0,
+			//"Date":"2021.05.14",
+			//"Time":"07:06:40.5000",
+			//"Latitude":58.2161882,
+			//"Longitude":22.3942873,
+			//"Altitude":0.140000,
+			//"GNSS type":"GPS+GLONASS",
+			//"Method":"GNSS fix",
+			//"Integrity":"No integrity checking",
+			//"Number of SVs":0,
+			//"HDOP":0.60,
+			//"PDOP":0.90,
+			//"Geoidal Separation":22.20,
+			//"Reference Stations":0}}
+			name:     "ok, PGN 129029 with RepeatingFields at minsize",
+			givenPGN: loadPGN(t, "canboat_pgn_129029.json"),
+			whenRaw: nmea.RawMessage{
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    3,
+					PGN:         129029,
+					Destination: 255,
+					Source:      127,
+				},
+				Data: []byte{
+					0x00, 0x49, 0x49, 0x88, 0x53, 0x42, 0x0f, 0x80, 0xc0, 0x83,
+					0x9e, 0x25, 0x41, 0x14, 0x08, 0x60, 0x7d, 0x03, 0x57, 0xdb,
+					0x9a, 0x1b, 0x03, 0xe0, 0x22, 0x02, 0x00, 0x00, 0x00, 0x00,
+					0x00, 0x12, 0xfc, 0x00, 0x3c, 0x00, 0x5a, 0x00, 0xac, 0x08,
+					0x00, 0x00, 0x00,
+				},
+			},
+			expect: nmea.Message{
+				Header: nmea.CanBusHeader{
+					Priority:    3,
+					PGN:         129029,
+					Destination: 255,
+					Source:      127,
+				},
+				Fields: []nmea.FieldValue{
+					{ID: "sid", Type: "UINT64", Value: uint64(0)},
+					{ID: "date", Type: "DATE", Value: time.Date(2021, time.May, 14, 0, 0, 0, 0, time.UTC)},
+					{ID: "time", Type: "DURATION", Value: time.Duration(25600500000000)},
+					{ID: "latitude", Type: "FLOAT64", Value: 58.2161881666666},
+					{ID: "longitude", Type: "FLOAT64", Value: 22.39428733333333},
+					{ID: "altitude", Type: "FLOAT64", Value: 0.14},
+					{ID: "gnssType", Type: "UINT64", Value: uint64(2)},
+					{ID: "method", Type: "UINT64", Value: uint64(1)},
+					{ID: "integrity", Type: "UINT64", Value: uint64(0)},
+					{ID: "numberOfSvs", Type: "UINT64", Value: uint64(0)},
+					{ID: "hdop", Type: "FLOAT64", Value: 0.6},
+					{ID: "pdop", Type: "FLOAT64", Value: 0.9},
+					{ID: "geoidalSeparation", Type: "FLOAT64", Value: 22.2},
+					{ID: "referenceStations", Type: "UINT64", Value: uint64(0)},
+				},
+			},
+		},
+		{
+			name:     "ok, PGN 126464 with RepeatingFields but without count field",
+			givenPGN: loadPGN(t, "canboat_pgn_126464.json"),
+			whenRaw: nmea.RawMessage{
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    3,
+					PGN:         126464,
+					Destination: 255,
+					Source:      127,
+				},
+				Data: []byte{
+					0x01,             // 1 = receive list
+					0x04, 0xFF, 0x01, // PGN 130820
+					0x11, 0xFB, 0x01, // PGN 129809
+				},
+			},
+			expect: nmea.Message{
+				Header: nmea.CanBusHeader{
+					Priority:    3,
+					PGN:         126464,
+					Destination: 255,
+					Source:      127,
+				},
+				Fields: []nmea.FieldValue{
+					{ID: "functionCode", Type: "UINT64", Value: uint64(1)},
+					{ID: "FIELDSET_1", Type: "FIELDSET", Value: [][]nmea.FieldValue{
+						{
+							{ID: "pgn", Type: "UINT64", Value: uint64(130820)},
+							{ID: "pgn", Type: "UINT64", Value: uint64(129809)},
+						},
+					}},
+				},
+			},
+		},
+		{
+			name:     "ok, PGN 126208-3 Read Fields group, with RepeatingFieldSet2",
+			givenPGN: loadPGN(t, "canboat_pgn_126208_3.json"),
+			whenRaw: nmea.RawMessage{
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    6,
+					PGN:         126208,
+					Destination: 5,
+					Source:      4,
+				},
+				Data: []byte{ // https://www.nmea.org/Assets/20140109%20nmea-2000-corrigendum-tc201401031%20pgn%20126208.pdf
+					// these bytes are made up. i do not understand 7/8 fields
+					0x03,             // 1) Function Code =  NMEA - Read Fields - group function
+					0x04, 0xFF, 0x01, // 2) PGN = 130820 (is proprietary PGN so fields 3/4/5 should be included)
+					0xa3, 0x99, // 3) Manufacturer Code = 419 4) reserved 5) Industry Code = 4
+					0x01, // 6) Unique ID = 1
+					0x01, // 7) Number of Selection Pairs = 1
+					0x02, // 8) Number of Parameter Pairs to be Read = 2
+					0x08, // 9) Field Number of First Selection Pair = 1
+					0x02, // 10) Field Value of First Selection Pair = 1
+					0x08, // 13) Field Number of First Parameter Pair to be Read = 8 (field "frequency"?)
+					0x06, // 14) Variable Number of Fields, field 13 repeated = 6 (field "AM/FM")
+				},
+			},
+			expect: nmea.Message{
+				Header: nmea.CanBusHeader{},
+				Fields: []nmea.FieldValue{},
+			},
+			expectError: "decoder failed to decode field: selectionValue, err: field type: VARIABLE, err: unsupported field type",
 		},
 	}
 

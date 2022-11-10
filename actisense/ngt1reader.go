@@ -59,6 +59,9 @@ type Config struct {
 	// during read but at the same time we want to be able to detect when there are no coming from bus for excessive
 	// amount of time.
 	ReceiveDataTimeout time.Duration
+
+	// DebugLogRawMessageBytes instructs device to log all received raw messages
+	DebugLogRawMessageBytes bool
 }
 
 // NewNGT1Device creates new instance of Actisense NGT-1 device

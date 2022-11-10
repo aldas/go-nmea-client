@@ -170,7 +170,6 @@ type PGN struct {
 	MissingAttribute []string   `json:"Missing"` // Fields, FieldLengths, Precision, Lookups, SampleData
 
 	// RepeatingFields is number of fields that may or may not exist at the end of fields list.
-	// FIXME: investigate `The last %u and %u fields repeat until the data is exhausted`. Mostly related to PGN=126208, png type of function is defined by first field
 	RepeatingFieldSet1Size       int8 `json:"RepeatingFieldSet1Size"`
 	RepeatingFieldSet1StartField int8 `json:"RepeatingFieldSet1StartField"`
 	RepeatingFieldSet1CountField int8 `json:"RepeatingFieldSet1CountField"`
@@ -387,7 +386,7 @@ func (f *Field) decodeDate(rawData nmea.RawData, bitOffset uint16) (nmea.FieldVa
 	}
 	return nmea.FieldValue{
 		ID:    f.ID,
-		Type:  "TIME",
+		Type:  "DATE",
 		Value: str,
 	}, nil
 }
@@ -517,12 +516,25 @@ func (pgns *PGNs) Validate() []error {
 	for _, pgn := range *pgns {
 		// RULE: field.ID must be unique within PGN
 		fields := map[string]Field{}
-		for _, f := range pgn.Fields {
+		for i, f := range pgn.Fields {
 			_, ok := fields[f.ID]
 			if ok {
 				result = append(result, fmt.Errorf("PGN %v has duplicate field ID: %v", pgn.PGN, f.ID))
 			}
+
+			if int(pgn.RepeatingFieldSet1CountField) == i+1 && f.FieldType != FieldTypeNumber {
+				result = append(result, fmt.Errorf("PGN %v Field ID: %v with non NUMBER type as RepeatingFieldSet1CountField", pgn.PGN, f.ID))
+			} else if int(pgn.RepeatingFieldSet2CountField) == i+1 && f.FieldType != FieldTypeNumber {
+				result = append(result, fmt.Errorf("PGN %v Field ID: %v with non NUMBER type as RepeatingFieldSet2CountField", pgn.PGN, f.ID))
+			}
 		}
+
+		if pgn.RepeatingFieldSet1StartField > 0 && pgn.RepeatingFieldSet1StartField <= pgn.RepeatingFieldSet1CountField {
+			result = append(result, fmt.Errorf("PGN %v RepeatingFieldSet1StartField is before RepeatingFieldSet1CountField", pgn.PGN))
+		} else if pgn.RepeatingFieldSet2StartField > 0 && pgn.RepeatingFieldSet2StartField <= pgn.RepeatingFieldSet2CountField {
+			result = append(result, fmt.Errorf("PGN %v RepeatingFieldSet2StartField is before RepeatingFieldSet2CountField", pgn.PGN))
+		}
+
 		// Usual field validations
 		for _, f := range pgn.Fields {
 			if err := f.Validate(); err != nil {

@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+type RawMessageReader interface {
+	ReadRawMessage(ctx context.Context) (nmea.RawMessage, error)
+	Initialize() error
+}
+
 // N2kASCIIDevice is implementing Actisense W2K-1 device capable of decoding NMEA 2000 Ascii format including
 // fast-packet and multi-packet (ISO TP) messages
 //
@@ -22,15 +27,17 @@ type N2kASCIIDevice struct {
 	readBuffer []byte
 	readIndex  int
 
-	DebugLogRawMessageBytes bool
+	config Config
 }
 
 // NewN2kASCIIDevice creates new instance of Actisense W2K-1 device capable of decoding NMEA 2000 Ascii format
-func NewN2kASCIIDevice(reader io.ReadWriter) *N2kASCIIDevice {
+func NewN2kASCIIDevice(reader io.ReadWriter, config Config) *N2kASCIIDevice {
 	return &N2kASCIIDevice{
 		device:     reader,
 		timeNow:    time.Now,
 		readBuffer: make([]byte, nmea.ISOTPDataMaxSize*2),
+
+		config: config,
 	}
 }
 
@@ -39,6 +46,10 @@ func (d *N2kASCIIDevice) Close() error {
 		return c.Close()
 	}
 	return errors.New("device does not implement Closer interface")
+}
+
+func (d *N2kASCIIDevice) Initialize() error {
+	return nil
 }
 
 func (d *N2kASCIIDevice) ReadRawMessage(ctx context.Context) (nmea.RawMessage, error) {
@@ -74,7 +85,7 @@ func (d *N2kASCIIDevice) ReadRawMessage(ctx context.Context) (nmea.RawMessage, e
 		d.readIndex += messageEndIndex
 
 		message := d.readBuffer[0:d.readIndex]
-		if d.DebugLogRawMessageBytes {
+		if d.config.DebugLogRawMessageBytes {
 			fmt.Printf("# DEBUG Actisense N2K ASCII message: %x\n", message)
 		}
 		now := d.timeNow()

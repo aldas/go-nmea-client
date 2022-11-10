@@ -81,7 +81,7 @@ func TestN2kAsciiDevice_ReadRawMessage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockReader := &test_test.MockReaderWriter{Reads: tc.reads}
 
-			device := NewN2kASCIIDevice(mockReader)
+			device := NewN2kASCIIDevice(mockReader, Config{})
 			device.timeNow = func() time.Time {
 				return now
 			}
