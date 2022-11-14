@@ -35,9 +35,9 @@ coverage: ## Generate global code coverage report
 	./scripts/coverage.sh;
 
 coverhtml: ## Generate global code coverage report in HTML
-	./scripts/coverage.sh html;
+	./scripts/coverage.sh html
 
-actisense: # builds Actisense reader utility
+actisense: ## builds Actisense reader utility
 	@go build -o actisense-reader cmd/actisense/main.go
 
 help: ## Display this help screen

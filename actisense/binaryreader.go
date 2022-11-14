@@ -19,22 +19,26 @@ const (
 	// DLE marker byte before start/end packet byte. Is sent before STX or ETX byte is sent (DLE+STX or DLE+ETX)
 	DLE = 0x10
 
-	// cmdN2KMessageReceived identifies that packet is received/incoming NMEA200 data message.
-	cmdN2KMessageReceived = 0x93
-	// cmdN2KMessageRequestReceived identifies that packet is sent/outgoing NMEA200 data message.
-	cmdN2KMessageSend = 0x94
-	// cmdNGTMessageReceived identifies that received packet is (BEMCMD) Actisense NGT specific message
-	cmdNGTMessageReceived = 0xA0
-	// cmdNGTMessageSend identifies that sent packet is Actisense NGT specific message
-	cmdNGTMessageSend = 0xA1
+	// cmdNGTMessageReceived identifies that packet is received/incoming NMEA200 data message as NGT binary format.
+	cmdNGTMessageReceived = 0x93
+	// cmdN2KMessageRequestReceived identifies that packet is sent/outgoing NMEA200 data message as NGT binary format.
+	cmdNGTMessageSend = 0x94
+
+	// cmdN2KMessageReceived identifies that packet is received/incoming NMEA200 data message as N2K binary format.
+	cmdN2KMessageReceived = 0xD0
+
+	// cmdDeviceMessageReceived identifies that received packet is (BEMCMD) Actisense NGT specific message
+	cmdDeviceMessageReceived = 0xA0
+	// cmdDeviceMessageSend identifies that sent packet is Actisense NGT specific message
+	cmdDeviceMessageSend = 0xA1
 
 	// CanBoatFakePGNOffset is offset for PGNs that Actisense devices create for their own information. We add it to
 	// parsed PGN and after that we can find match from Canboat PGN database with that
 	CanBoatFakePGNOffset uint32 = 0x40000
 )
 
-// NGT1 is implementing Actisense NGT-1 device
-type NGT1 struct {
+// BinaryFormatDevice is implementing Actisense device using binary formats (NGT1 and N2K binary)
+type BinaryFormatDevice struct {
 	ignoreNGT1Messages bool
 	device             io.ReadWriter
 
@@ -64,14 +68,14 @@ type Config struct {
 	DebugLogRawMessageBytes bool
 }
 
-// NewNGT1Device creates new instance of Actisense NGT-1 device
-func NewNGT1Device(reader io.ReadWriter) *NGT1 {
-	return NewNGT1DeviceWithConfig(reader, Config{ReceiveDataTimeout: 150 * time.Millisecond})
+// NewBinaryDevice creates new instance of Actisense device using binary formats (NGT1 and N2K binary)
+func NewBinaryDevice(reader io.ReadWriter) *BinaryFormatDevice {
+	return NewBinaryDeviceWithConfig(reader, Config{ReceiveDataTimeout: 150 * time.Millisecond})
 }
 
-// NewNGT1DeviceWithConfig creates new instance of Actisense NGT-1 device with given config
-func NewNGT1DeviceWithConfig(reader io.ReadWriter, config Config) *NGT1 {
-	device := &NGT1{
+// NewBinaryDeviceWithConfig creates new instance of Actisense device using binary formats (NGT1 and N2K binary) with given config
+func NewBinaryDeviceWithConfig(reader io.ReadWriter, config Config) *BinaryFormatDevice {
+	device := &BinaryFormatDevice{
 		device: reader,
 		sleepFunc: func(timeout time.Duration) {
 			time.Sleep(timeout)
@@ -94,10 +98,11 @@ const (
 	processingEscapeSequence
 )
 
-// ReadRawMessage reads raw USB data and parses it to nmea.RawMessage. This method block until full RawMessage is read or
+// ReadRawMessage reads raw data and parses it to nmea.RawMessage. This method block until full RawMessage is read or
 // an error occurs (including context related errors).
-func (d *NGT1) ReadRawMessage(ctx context.Context) (nmea.RawMessage, error) {
-	message := make([]byte, nmea.FastRawPacketMaxSize) // TODO: how large it should be? https://en.wikipedia.org/wiki/NMEA_2000 see sizes
+func (d *BinaryFormatDevice) ReadRawMessage(ctx context.Context) (nmea.RawMessage, error) {
+	// Actisense N2K binary message can be up to ISOTP size 1785
+	message := make([]byte, nmea.ISOTPDataMaxSize)
 	messageByteIndex := 0
 
 	buf := make([]byte, 1)
@@ -156,9 +161,11 @@ func (d *NGT1) ReadRawMessage(ctx context.Context) (nmea.RawMessage, error) {
 					fmt.Printf("# DEBUG raw actisense binary message: %x\n", message[0:messageByteIndex])
 				}
 				switch message[0] {
-				case cmdN2KMessageReceived, cmdN2KMessageSend:
-					return fromActisenseBinaryMessage(message[0:messageByteIndex], now)
-				case cmdNGTMessageReceived:
+				case cmdNGTMessageReceived, cmdNGTMessageSend:
+					return fromActisenseNGTBinaryMessage(message[0:messageByteIndex], now)
+				case cmdN2KMessageReceived:
+					return fromActisenseN2KBinaryMessage(message[0:messageByteIndex], now)
+				case cmdDeviceMessageReceived:
 					if !d.ignoreNGT1Messages {
 						return fromNGTMessage(message[0:messageByteIndex], now)
 					}
@@ -175,7 +182,7 @@ func (d *NGT1) ReadRawMessage(ctx context.Context) (nmea.RawMessage, error) {
 func fromNGTMessage(raw []byte, now time.Time) (nmea.RawMessage, error) {
 	// first 2 bytes for raw are command(@0) + len(@1)
 	if len(raw) < (12 + 2) {
-		return nmea.RawMessage{}, errors.New("raw message length too short to be valid NGT1 message")
+		return nmea.RawMessage{}, errors.New("raw message length too short to be valid BinaryFormatDevice message")
 	}
 	payloadLen := int(raw[1])
 	if len(raw)-2 > payloadLen {
@@ -197,7 +204,7 @@ func fromNGTMessage(raw []byte, now time.Time) (nmea.RawMessage, error) {
 	}, nil
 }
 
-func fromActisenseBinaryMessage(raw []byte, now time.Time) (nmea.RawMessage, error) {
+func fromActisenseNGTBinaryMessage(raw []byte, now time.Time) (nmea.RawMessage, error) {
 	length := len(raw) - 2 // 2 bytes for: command(@0) + len(@1)
 	data := raw[2:]
 
@@ -231,6 +238,45 @@ func fromActisenseBinaryMessage(raw []byte, now time.Time) (nmea.RawMessage, err
 	}, nil
 }
 
+func fromActisenseN2KBinaryMessage(raw []byte, now time.Time) (nmea.RawMessage, error) {
+	// first 3 bytes are: 1 byte for message type, 2 bytes for rest of message length
+	length := uint32(raw[1]) + uint32(raw[2])<<8
+	if int(length)+1 != len(raw) {
+		return nmea.RawMessage{}, errors.New("raw message length do not match actual data length")
+	}
+
+	dst := raw[3] // destination
+	src := raw[4] // source
+
+	dprp := raw[7]          // data page (1bit) + reserved (1bit) + priority bits (3bits)
+	prio := (dprp >> 2) & 7 // priority bits are 3,4,5th bit
+	rAndDP := dprp & 3      // data page + reserved is first 2 bits
+
+	pduFormat := raw[6] // PF (PDU Format)
+	pgn := uint32(rAndDP)<<16 + uint32(pduFormat)<<8
+	if pduFormat >= 240 { // message is broadcast, PS contains group extension
+		pgn += uint32(raw[5]) // +PS (PDU Specific)
+	}
+	//control := raw[8] // `PGN control ID bits and 3-bit Fast-Packet sequence ID` I do not know where this is useful.
+
+	const dataPartIndex = int(13)
+	dataBytes := make([]byte, len(raw)-dataPartIndex)
+	copy(dataBytes, raw[dataPartIndex:])
+
+	return nmea.RawMessage{
+		Time: now,
+		Header: nmea.CanBusHeader{
+			PGN:         pgn,
+			Source:      src,
+			Destination: dst,
+			Priority:    prio,
+		},
+		// NB: actisense n2k has (four bytes) for timestamp in milliseconds
+		//Timestamp: uint32(raw[9]) + uint32(raw[10])<<8 + uint32(raw[11])<<16 + uint32(raw[12])<<24,
+		Data: dataBytes,
+	}, nil
+}
+
 // crcCheck calculates and checks message checksum.
 func crcCheck(data []byte) error {
 	if crc(data) != 0 {
@@ -254,25 +300,25 @@ func crc(data []byte) uint8 {
 	return uint8(crc)
 }
 
-// Initialize initializes connection to device. Otherwise NGT1 will not send data.
+// Initialize initializes connection to device. Otherwise BinaryFormatDevice will not send data.
 //
 // Canboat notes:
 // The following startup command reverse engineered from Actisense NMEAreader.
-// It instructs the NGT1 to clear its PGN message TX list, thus it starts sending all PGNs.
-func (d *NGT1) Initialize() error {
+// It instructs the BinaryFormatDevice to clear its PGN message TX list, thus it starts sending all PGNs.
+func (d *BinaryFormatDevice) Initialize() error {
 	// Page 14: ACommsCommand_SetOperatingMode
 	// https://www.actisense.com/wp-content/uploads/2020/01/ActisenseComms-SDK-User-Manual-Issue-1.07-1.pdf
 	clearPGNFilter := []byte{ // `Receive All Transfer` Operating Mode
-		cmdNGTMessageSend, // NGT specific message
-		3,                 // length
-		0x11,              // msg byte 1, meaning `operating mode`
-		0x02,              // msg byte 2, meaning 'receive all' (2 bytes)
-		0x00,              // msg byte 3
+		cmdDeviceMessageSend, // NGT specific message
+		3,                    // length
+		0x11,                 // msg byte 1, meaning `operating mode`
+		0x02,                 // msg byte 2, meaning 'receive all' (2 bytes)
+		0x00,                 // msg byte 3
 	}
 	return d.write(clearPGNFilter)
 }
 
-func (d *NGT1) write(data []byte) error {
+func (d *BinaryFormatDevice) write(data []byte) error {
 	packet := append([]byte{DLE, STX}, data...)
 	crcByte := 0 - crc(data)
 	packet = append(packet, []byte{crcByte, DLE, ETX}...)
@@ -295,14 +341,14 @@ func (d *NGT1) write(data []byte) error {
 			break
 		}
 		if retryCount > maxRetry {
-			return errors.New("actisense NGT1 writes failed. retry count reached")
+			return errors.New("actisense BinaryFormatDevice writes failed. retry count reached")
 		}
 		d.sleepFunc(250 * time.Millisecond)
 	}
 	return nil
 }
 
-func (d *NGT1) Close() error {
+func (d *BinaryFormatDevice) Close() error {
 	if c, ok := d.device.(io.Closer); ok {
 		return c.Close()
 	}

@@ -42,10 +42,6 @@ const (
 	// FieldTypeStringFix - A fixed length string containing single byte codepoints. The length of the string is
 	// determined by the PGN field definition. Trailing bytes have been observed as '@', ' ', 0x0 or 0xff.
 	FieldTypeStringFix FieldType = "STRING_FIX"
-	// FieldTypeStringVar - A varying length string containing single byte codepoints. The length of the string is
-	// determined either with a start (0x02) and stop (0x01) byte, or with a starting length byte (> 0x02), or an
-	// indication that the string is empty which is encoded by either 0x01 or 0x00 as the first byte.
-	FieldTypeStringVar FieldType = "STRING_VAR"
 	// FieldTypeStringLz - A varying length string containing single byte codepoints encoded with a length byte and
 	// terminating zero. The length of the string is determined by a starting length byte. It also contains a
 	// terminating zero byte. The length byte includes the zero byte but not itself.
@@ -85,7 +81,7 @@ func (bv *FieldType) UnmarshalJSON(b []byte) error {
 	case string(FieldTypeNumber), string(FieldTypeFloat), string(FieldTypeDecimal), string(FieldTypeLookup),
 		string(FieldTypeIndirectLookup),
 		string(FieldTypeBitLookup), string(FieldTypeTime), string(FieldTypeDate), string(FieldTypeStringFix),
-		string(FieldTypeStringVar), string(FieldTypeStringLz), string(FieldTypeStringLAU), string(FieldTypeBinary),
+		string(FieldTypeStringLz), string(FieldTypeStringLAU), string(FieldTypeBinary),
 		string(FieldTypeReserved), string(FieldTypeSpare), string(FieldTypeMMSI),
 		string(FieldTypeVariable):
 		tmp = FieldType(t)

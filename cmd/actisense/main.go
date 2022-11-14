@@ -21,7 +21,7 @@ func main() {
 	onlyRaw := flag.Bool("raw-only", false, "prints only raw message (does not parse to pgn)")
 	noShowPNG := flag.Bool("np", false, "do not print parsed PNGs")
 	isFile := flag.Bool("is-file", false, "consider device as ordinary file")
-	inputFormat := flag.String("input-format", "ngt", "in which format packet are read (ngt,n2k-ascii)")
+	inputFormat := flag.String("input-format", "ngt", "in which format packet are read (ngt, n2k-bin, n2k-ascii)")
 	deviceAddr := flag.String("device", "/dev/ttyUSB0", "path to Actisense NGT-1 USB device")
 	pgnsPath := flag.String("pgns", "", "path to Canboat pgns.json file")
 	outputFormat := flag.String("output-format", "json", "in which format raw and decoded packet should be printed out (json, canboat)")
@@ -48,7 +48,7 @@ func main() {
 	}
 
 	switch *inputFormat {
-	case "ngt", "n2k-ascii":
+	case "ngt", "n2k-bin", "n2k-ascii":
 	default:
 		log.Fatal("unknown input format type given\n")
 	}
@@ -82,10 +82,14 @@ func main() {
 		ReceiveDataTimeout:      5 * time.Second,
 		DebugLogRawMessageBytes: *printRaw, // || *onlyRaw // FIXME
 	}
+	if *isFile {
+		config.ReceiveDataTimeout = 100 * time.Millisecond
+	}
+
 	var device actisense.RawMessageReader
 	switch *inputFormat {
-	case "ngt":
-		device = actisense.NewNGT1DeviceWithConfig(reader, config)
+	case "ngt", "n2k-bin":
+		device = actisense.NewBinaryDeviceWithConfig(reader, config)
 	case "n2k-ascii":
 		device = actisense.NewN2kASCIIDevice(reader, config)
 	}
