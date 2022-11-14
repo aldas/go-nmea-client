@@ -50,6 +50,23 @@ type FieldValue struct {
 	Value interface{} `json:"value"`
 }
 
+// AsFloat64 converts value to float64 if it is possible.
+func (f FieldValue) AsFloat64() (float64, bool) {
+	switch v := f.Value.(type) {
+	case float64:
+		return v, true
+	case int64:
+		return float64(v), true
+	case uint64:
+		return float64(v), true
+	case time.Duration:
+		return float64(v), true
+	case time.Time:
+		return float64(v.UnixNano()), true
+	}
+	return 0, false
+}
+
 func (fvs FieldValues) FindByID(ID string) (FieldValue, bool) {
 	for _, f := range fvs {
 		if f.ID == ID {

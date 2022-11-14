@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/aldas/go-nmea-client"
 	test_test "github.com/aldas/go-nmea-client/test"
+	"github.com/aldas/go-nmea-client/test/test_message"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -294,7 +295,7 @@ func TestField_Decode(t *testing.T) {
 			result, readBits, err := tc.when.Decode(tc.givenRawData, tc.when.BitOffset)
 
 			assert.Equal(t, tc.expectReadBits, readBits)
-			test_test.AssertFieldValue(t, tc.expect, result, 0.00000_00001)
+			test_message.AssertFieldValue(t, tc.expect, result, 0.00000_00001)
 			if tc.expectError != "" {
 				assert.EqualError(t, err, tc.expectError)
 			} else {

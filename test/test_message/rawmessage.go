@@ -1,4 +1,4 @@
-package test_test
+package test_message
 
 import (
 	"github.com/aldas/go-nmea-client"

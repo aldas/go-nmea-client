@@ -1,10 +1,66 @@
 package nmea
 
 import (
+	test_test "github.com/aldas/go-nmea-client/test"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
+
+func TestFieldValue_AsFloat64(t *testing.T) {
+	var testCases = []struct {
+		name     string
+		given    FieldValue
+		expect   float64
+		expectOK bool
+	}{
+		{
+			name:     "ok, FLOAT64 to float64",
+			given:    FieldValue{ID: "x", Type: "FLOAT64", Value: 0.123},
+			expect:   0.123,
+			expectOK: true,
+		},
+		{
+			name:     "ok, INT64 to float64",
+			given:    FieldValue{ID: "x", Type: "INT64", Value: int64(123)},
+			expect:   123,
+			expectOK: true,
+		},
+		{
+			name:     "ok, UINT64 to float64",
+			given:    FieldValue{ID: "x", Type: "UINT64", Value: uint64(123)},
+			expect:   123,
+			expectOK: true,
+		},
+		{
+			name:     "ok, DURATION to float64",
+			given:    FieldValue{ID: "x", Type: "DURATION", Value: 23 * time.Second},
+			expect:   23_000_000_000,
+			expectOK: true,
+		},
+		{
+			name:     "ok, TIME to float64",
+			given:    FieldValue{ID: "x", Type: "TIME", Value: test_test.UTCTime(1668428165)},
+			expect:   1668428165_000000000,
+			expectOK: true,
+		},
+		{
+			name:     "nok, STRING to float64",
+			given:    FieldValue{ID: "x", Type: "STRING", Value: "hi"},
+			expect:   0,
+			expectOK: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, ok := tc.given.AsFloat64()
+
+			assert.Equal(t, tc.expectOK, ok)
+			assert.InDelta(t, tc.expect, result, 0.00001)
+		})
+	}
+}
 
 func TestRawData_DecodeVariableUint(t *testing.T) {
 	var testCases = []struct {
