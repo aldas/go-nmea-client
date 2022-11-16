@@ -3,7 +3,7 @@ package canboat
 import (
 	"github.com/aldas/go-nmea-client"
 	test_test "github.com/aldas/go-nmea-client/test"
-	"github.com/aldas/go-nmea-client/test/test_message"
+	"github.com/aldas/go-nmea-client/test/message_test"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -823,7 +823,7 @@ func TestDecoder_Decode(t *testing.T) {
 
 			result, err := decoder.Decode(tc.whenRaw)
 
-			test_message.AssertRawMessage(t, tc.expect, result, 0.00000_00001)
+			message_test.AssertRawMessage(t, tc.expect, result, 0.00000_00001)
 			if tc.expectError != "" {
 				assert.EqualError(t, err, tc.expectError)
 			} else {

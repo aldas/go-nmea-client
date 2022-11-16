@@ -37,6 +37,67 @@ Useful links:
 1. https://gist.github.com/jackm/f33d6e3a023bfcc680ec3bfa7076e696
 
 
+## Example
+
+```go
+func main() {
+	f, err := os.Open("canboat.json")
+	schema := canboat.CanboatSchema{}
+	if err := json.NewDecoder(f).Decode(&schema); err != nil {
+		log.Fatal(err)
+	}
+	decoder := canboat.NewDecoder(schema)
+
+	// reader, err = os.OpenFile("/path/to/some/logged_traffic.bin", os.O_RDONLY, 0)
+	reader, err := serial.OpenPort(&serial.Config{
+		Name: "/dev/ttyUSB0",
+		Baud: 115200,
+		// ReadTimeout is duration that Read call is allowed to block. Device has different timeout for situation when
+		// there is no activity on bus. Can not be smaller than 100ms
+		ReadTimeout: 5 * time.Millisecond,
+		Size:        8,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer reader.Close()
+
+	config := actisense.Config{
+		ReceiveDataTimeout:      5 * time.Second,
+		DebugLogRawMessageBytes: false,
+	}
+	// device = actisense.NewN2kASCIIDevice(reader, config) // W2K-1 has support for Actisense N2K Ascii format
+	device := actisense.NewBinaryDeviceWithConfig(reader, config)
+	if err := device.Initialize(); err != nil {
+		log.Fatal(err)
+	}
+
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+	for {
+		rawMessage, err := device.ReadRawMessage(ctx)
+		if err != nil {
+			if err == io.EOF || err == context.Canceled {
+				return
+			}
+			log.Fatal(err)
+		}
+		b, _ := json.Marshal(rawMessage)
+		fmt.Printf("#Raw %s\n", b)
+
+		pgn, err := decoder.Decode(rawMessage)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+
+		b, _ = json.Marshal(pgn)
+		fmt.Printf("%s\n", b)
+	}
+}
+```
+
+
 ## Useful commands
 
 ### Actisense reader utility

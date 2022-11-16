@@ -39,8 +39,7 @@ const (
 
 // BinaryFormatDevice is implementing Actisense device using binary formats (NGT1 and N2K binary)
 type BinaryFormatDevice struct {
-	ignoreNGT1Messages bool
-	device             io.ReadWriter
+	device io.ReadWriter
 
 	sleepFunc func(timeout time.Duration)
 	timeNow   func() time.Time
@@ -50,7 +49,7 @@ type BinaryFormatDevice struct {
 	// but at the same time we want to be able to detect when there are no coming from bus for excessive amount of time.
 	receiveDataTimeout time.Duration
 
-	DebugLogRawMessageBytes bool
+	config Config
 }
 
 // Config is configuration for Actisense NGT-1 device
@@ -66,6 +65,8 @@ type Config struct {
 
 	// DebugLogRawMessageBytes instructs device to log all received raw messages
 	DebugLogRawMessageBytes bool
+	// OutputActisenseMessages instructs device to output Actisense own messages
+	OutputActisenseMessages bool
 }
 
 // NewBinaryDevice creates new instance of Actisense device using binary formats (NGT1 and N2K binary)
@@ -82,6 +83,7 @@ func NewBinaryDeviceWithConfig(reader io.ReadWriter, config Config) *BinaryForma
 		},
 		timeNow:            time.Now,
 		receiveDataTimeout: 5 * time.Second,
+		config:             config,
 	}
 	if config.ReceiveDataTimeout > 0 {
 		device.receiveDataTimeout = config.ReceiveDataTimeout
@@ -157,7 +159,7 @@ func (d *BinaryFormatDevice) ReadRawMessage(ctx context.Context) (nmea.RawMessag
 				break
 			}
 			if currentByte == ETX { // end of message sequence
-				if d.DebugLogRawMessageBytes {
+				if d.config.DebugLogRawMessageBytes {
 					fmt.Printf("# DEBUG raw actisense binary message: %x\n", message[0:messageByteIndex])
 				}
 				switch message[0] {
@@ -166,7 +168,7 @@ func (d *BinaryFormatDevice) ReadRawMessage(ctx context.Context) (nmea.RawMessag
 				case cmdN2KMessageReceived:
 					return fromActisenseN2KBinaryMessage(message[0:messageByteIndex], now)
 				case cmdDeviceMessageReceived:
-					if !d.ignoreNGT1Messages {
+					if d.config.OutputActisenseMessages {
 						return fromNGTMessage(message[0:messageByteIndex], now)
 					}
 				}
