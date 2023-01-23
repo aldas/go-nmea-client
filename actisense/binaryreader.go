@@ -63,7 +63,7 @@ type Config struct {
 	// amount of time.
 	ReceiveDataTimeout time.Duration
 
-	// DebugLogRawMessageBytes instructs device to log all received raw messages
+	// DebugLogRawMessageBytes instructs device to log all sent/received raw messages
 	DebugLogRawMessageBytes bool
 	// OutputActisenseMessages instructs device to output Actisense own messages
 	OutputActisenseMessages bool
@@ -160,7 +160,7 @@ func (d *BinaryFormatDevice) ReadRawMessage(ctx context.Context) (nmea.RawMessag
 			}
 			if currentByte == ETX { // end of message sequence
 				if d.config.DebugLogRawMessageBytes {
-					fmt.Printf("# DEBUG raw actisense binary message: %x\n", message[0:messageByteIndex])
+					fmt.Printf("# DEBUG read raw actisense binary message: %x\n", message[0:messageByteIndex])
 				}
 				switch message[0] {
 				case cmdNGTMessageReceived, cmdNGTMessageSend:
@@ -207,13 +207,17 @@ func fromNGTMessage(raw []byte, now time.Time) (nmea.RawMessage, error) {
 }
 
 func fromActisenseNGTBinaryMessage(raw []byte, now time.Time) (nmea.RawMessage, error) {
-	length := len(raw) - 2 // 2 bytes for: command(@0) + len(@1)
+	length := len(raw) - 2 // 2 bytes for: command(raw[0]) + len(raw[1])
 	data := raw[2:]
+	if length < 11 {
+		return nmea.RawMessage{}, errors.New("raw message length too short to be valid NMEA message")
+	}
 
 	const dataPartIndex = int(11)
 	l := data[10]
-	if length < 11 || length < dataPartIndex+int(l) {
-		return nmea.RawMessage{}, errors.New("raw message length too short to be valid NMEA message")
+	endIndex := dataPartIndex + int(l)
+	if length != endIndex+1 {
+		return nmea.RawMessage{}, fmt.Errorf("data length byte value is different from actual length, %v!=%v", l, length-dataPartIndex)
 	}
 
 	if err := crcCheck(raw); err != nil {
@@ -221,9 +225,8 @@ func fromActisenseNGTBinaryMessage(raw []byte, now time.Time) (nmea.RawMessage, 
 	}
 
 	pgn := uint32(data[1]) + uint32(data[2])<<8 + uint32(data[3])<<16
-	b := dataPartIndex + int(l)
 	dataBytes := make([]byte, l)
-	copy(dataBytes, data[dataPartIndex:b])
+	copy(dataBytes, data[dataPartIndex:endIndex])
 
 	return nmea.RawMessage{
 		Time: now,
@@ -311,24 +314,54 @@ func (d *BinaryFormatDevice) Initialize() error {
 	// Page 14: ACommsCommand_SetOperatingMode
 	// https://www.actisense.com/wp-content/uploads/2020/01/ActisenseComms-SDK-User-Manual-Issue-1.07-1.pdf
 	clearPGNFilter := []byte{ // `Receive All Transfer` Operating Mode
-		cmdDeviceMessageSend, // NGT specific message
+		cmdDeviceMessageSend, // Op code (NGT specific message)
 		3,                    // length
 		0x11,                 // msg byte 1, meaning `operating mode`
 		0x02,                 // msg byte 2, meaning 'receive all' (2 bytes)
 		0x00,                 // msg byte 3
 	}
-	return d.write(clearPGNFilter)
+	return d.writeBstMessage(clearPGNFilter)
 }
 
-func (d *BinaryFormatDevice) write(data []byte) error {
-	packet := append([]byte{DLE, STX}, data...)
+func (d *BinaryFormatDevice) Write(msg nmea.RawMessage) error {
+	header := msg.Header
+
+	dataLen := len(msg.Data)
+	buf := make([]byte, dataLen+2+6)
+	buf[0] = cmdNGTMessageSend // Op code
+	buf[1] = byte(dataLen + 6) // length
+
+	buf[2] = header.Priority        // 1
+	buf[3] = byte(header.PGN)       // 2
+	buf[4] = byte(header.PGN >> 8)  // 3
+	buf[5] = byte(header.PGN >> 16) // 4
+	buf[6] = header.Destination     // 5
+	buf[7] = byte(dataLen)          // 6
+	copy(buf[8:], msg.Data)
+
+	return d.writeBstMessage(buf)
+}
+
+func (d *BinaryFormatDevice) writeBstMessage(data []byte) error {
+	packet := make([]byte, 0, len(data)+4+3) // 4 for prefix/suffix bytes and 3 for possible DLEs that need escaping
+	packet = append(packet, DLE, STX)
+	for _, b := range data {
+		if b == DLE { // need to be escaped DLE => DLE, DLE
+			packet = append(packet, DLE)
+		}
+		packet = append(packet, b)
+	}
 	crcByte := 0 - crc(data)
-	packet = append(packet, []byte{crcByte, DLE, ETX}...)
+	packet = append(packet, crcByte, DLE, ETX)
 
 	toWrite := len(packet)
 	totalWritten := 0
 	retryCount := 0
 	maxRetry := 5
+
+	if d.config.DebugLogRawMessageBytes {
+		fmt.Printf("# DEBUG sent raw actisense binary message: %x\n", packet)
+	}
 	for {
 		n, err := d.device.Write(packet)
 		if err != nil {

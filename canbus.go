@@ -2,9 +2,9 @@ package nmea
 
 type CanBusHeader struct {
 	PGN         uint32 `json:"pgn"`
+	Priority    uint8  `json:"priority"`
 	Source      uint8  `json:"source"`
 	Destination uint8  `json:"destination"`
-	Priority    uint8  `json:"priority"`
 }
 
 func (h CanBusHeader) ProprietaryType() string { // FIXME: is it necessary?

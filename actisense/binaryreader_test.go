@@ -78,7 +78,7 @@ func TestParseRawMessages(t *testing.T) {
 			// "input":["2021-05-26T07:35:59.958Z,2,129026,127,255,8,00,fc,ff,ff,00,00,ff,ff"],
 			// "fields":{"SID":0,"COG Reference":"True","SOG":0},"description":"COG & SOG, Rapid Update"}
 			name: "ok, 129026, COG & SOG, Rapid Update",
-			when: "93130202f801ff7f15baf1460800fcffff0000ffffd90000",
+			when: "93130202f801ff7f15baf1460800fcffff0000ffffd9",
 			expect: nmea.RawMessage{
 				Time: now,
 				Header: nmea.CanBusHeader{
@@ -97,7 +97,7 @@ func TestParseRawMessages(t *testing.T) {
 			// "input":["2021-05-26T07:35:59.962Z,2,129025,127,255,8,1e,17,b3,22,49,19,59,0d"],
 			// "fields":{"Latitude":58.2162206,"Longitude":22.3942985},"description":"Position, Rapid Update"}
 			name: "ok, 129025, Position, Rapid Update",
-			when: "93130201f801ff7f15baf146081e17b3224919590d000000",
+			when: "93130201f801ff7f15baf146081e17b3224919590d00",
 			expect: nmea.RawMessage{
 				Time: now,
 				Header: nmea.CanBusHeader{
@@ -116,7 +116,7 @@ func TestParseRawMessages(t *testing.T) {
 			// "input":["2021-05-26T07:35:59.963Z,2,127250,128,255,8,00,bd,ee,ff,7f,31,05,fd"],
 			// "fields":{"SID":0,"Heading":6.1117,"Variation":0.1329,"Reference":"Magnetic"},"description":"Vessel Heading"}
 			name: "ok, 127250, Vessel Heading",
-			when: "93130212f101ff8016baf1460800bdeeff7f3105fd6a0000",
+			when: "93130212f101ff8016baf1460800bdeeff7f3105fd6a",
 			expect: nmea.RawMessage{
 				Time: now,
 				Header: nmea.CanBusHeader{
@@ -135,7 +135,7 @@ func TestParseRawMessages(t *testing.T) {
 			// "input":["2021-05-26T07:35:59.964Z,3,127251,128,255,8,00,f2,e6,1d,00,00,ff,ff"],
 			// "fields":{"SID":0,"Rate":0.0612395625},"description":"Rate of Turn"}
 			name: "ok, 127251, Rate of Turn",
-			when: "93130313f101ff8017baf1460800f2e61d0000ffffd00000",
+			when: "93130313f101ff8017baf1460800f2e61d0000ffffd0",
 			expect: nmea.RawMessage{
 				Time: now,
 				Header: nmea.CanBusHeader{
@@ -154,7 +154,7 @@ func TestParseRawMessages(t *testing.T) {
 			// "input":["2021-05-26T07:36:00.454Z,3,129029,127,255,43,00,55,49,b8,d9,4e,10,80,32,06,4a,71,41,14,08,00,9a,dd,56,f5,9a,1b,03,50,15,17,01,00,00,00,00,12,fc,00,0e,01,9a,01,ac,08,00,00,00"],
 			// "fields":{"SID":0,"Date":"2021.05.26","Time":"07:36:00.30000","Latitude":58.21622066666666,"Longitude":22.394298499999998,"Altitude":18.29,"GNSS type":"GPS+GLONASS","Method":"GNSS fix","Integrity":"No integrity checking","Number of SVs":0,"HDOP":2.7,"PDOP":4.1,"Geoidal Separation":22.2,"Reference Stations":0,"list":[]},"description":"GNSS Position Data"}
 			name: "ok, 129029, GNSS Position Data",
-			when: "93360305f801ff7f0cbcf1462b005549b8d94e108032064a71411408009add56f59a1b03501517010000000012fc000e019a01ac08000000ce0000",
+			when: "93360305f801ff7f0cbcf1462b005549b8d94e108032064a71411408009add56f59a1b03501517010000000012fc000e019a01ac08000000ce",
 			expect: nmea.RawMessage{
 				Time: now,
 				Header: nmea.CanBusHeader{
@@ -179,7 +179,7 @@ func TestParseRawMessages(t *testing.T) {
 			//"input":["2021-05-26T07:36:00.494Z,6,129540,127,255,135,00,ff,0b,02,96,1a,72,50,1c,0c,00,00,00,00,f2,03,d1,06,ae,00,48,0d,00,00,00,00,f2,06,e8,19,c4,31,74,0e,00,00,00,00,f2,0c,39,37,5b,4c,fc,08,00,00,00,00,f2,13,f4,0c,73,23,d8,0e,00,00,00,00,f2,56,d1,06,0b,11,6c,07,00,00,00,00,f2,1d,39,0a,f1,93,6c,07,00,00,00,00,f0,20,c5,13,1f,ba,14,05,00,00,00,00,f0,46,f4,0c,58,f1,6c,07,00,00,00,00,f0,4d,8b,18,cf,51,dc,05,00,00,00,00,f0,57,00,00,00,00,f0,0a,00,00,00,00,f0"],
 			//"fields":{"SID":0,"Sats in View":11,"list":[{"PRN":2,"Elevation":0.6806,"Azimuth":2.0594,"SNR":31,"Range residuals":0,"Status":"Used"},{"PRN":3,"Elevation":0.1745,"Azimuth":0.0174,"SNR":34,"Range residuals":0,"Status":"Used"},{"PRN":6,"Elevation":0.6632,"Azimuth":1.274,"SNR":37,"Range residuals":0,"Status":"Used"},{"PRN":12,"Elevation":1.4137,"Azimuth":1.9547,"SNR":23,"Range residuals":0,"Status":"Used"},{"PRN":19,"Elevation":0.3316,"Azimuth":0.9075,"SNR":38,"Range residuals":0,"Status":"Used"},{"PRN":86,"Elevation":0.1745,"Azimuth":0.4363,"SNR":19,"Range residuals":0,"Status":"Used"},{"PRN":29,"Elevation":0.2617,"Azimuth":3.7873,"SNR":19,"Range residuals":0,"Status":"Not tracked"},{"PRN":32,"Elevation":0.5061,"Azimuth":4.7647,"SNR":13,"Range residuals":0,"Status":"Not tracked"},{"PRN":70,"Elevation":0.3316,"Azimuth":6.1784,"SNR":19,"Range residuals":0,"Status":"Not tracked"},{"PRN":77,"Elevation":0.6283,"Azimuth":2.0943,"SNR":15,"Range residuals":0,"Status":"Not tracked"},{"PRN":87,"Elevation":0,"Azimuth":0,"SNR":28,"Range residuals":0,"Status":"Not tracked"}]},"description":"GNSS Sats in View"}
 			name: "ok, 129540, GNSS Sats in View",
-			when: "93920604fa01ff7f10bcf1468700ff0b02961a72501c0c00000000f203d106ae00480d00000000f206e819c431740e00000000f20c39375b4cfc0800000000f213f40c7323d80e00000000f256d1060b116c0700000000f21d390af1936c0700000000f020c5131fba140500000000f046f40c58f16c0700000000f04d8b18cf51dc0500000000f05700000000f00a00000000f07a0000",
+			when: "93920604fa01ff7f10bcf1468700ff0b02961a72501c0c00000000f203d106ae00480d00000000f206e819c431740e00000000f20c39375b4cfc0800000000f213f40c7323d80e00000000f256d1060b116c0700000000f21d390af1936c0700000000f020c5131fba140500000000f046f40c58f16c0700000000f04d8b18cf51dc0500000000f05700000000f00a00000000f07a",
 			expect: nmea.RawMessage{
 				Time: now,
 				Header: nmea.CanBusHeader{

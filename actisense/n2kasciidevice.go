@@ -16,6 +16,15 @@ type RawMessageReader interface {
 	Initialize() error
 }
 
+type RawMessageWriter interface {
+	Write(nmea.RawMessage) error
+}
+
+type RawMessageReaderWriter interface {
+	RawMessageReader
+	RawMessageWriter
+}
+
 // N2kASCIIDevice is implementing Actisense W2K-1 device capable of decoding NMEA 2000 Ascii format including
 // fast-packet and multi-packet (ISO TP) messages
 //
@@ -46,6 +55,10 @@ func (d *N2kASCIIDevice) Close() error {
 		return c.Close()
 	}
 	return errors.New("device does not implement Closer interface")
+}
+
+func (d *N2kASCIIDevice) Write(nmea.RawMessage) error {
+	return errors.New("not implemented")
 }
 
 func (d *N2kASCIIDevice) Initialize() error {

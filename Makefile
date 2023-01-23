@@ -37,8 +37,18 @@ coverage: ## Generate global code coverage report
 coverhtml: ## Generate global code coverage report in HTML
 	./scripts/coverage.sh html
 
-actisense: ## builds Actisense reader utility
+actisense: ## builds Actisense reader utility (for current architecture)
 	@go build -o actisense-reader cmd/actisense/main.go
+
+actisense-all: ## builds Actisense reader utility (for different architectures)
+	@GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags="-s -w" -o actisense-reader-mips32 cmd/actisense/main.go
+	@GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o actisense-reader-amd64 cmd/actisense/main.go
+	# Compiling binary file suitable for ARM (Raspberry PI zero)
+	@GOOS=linux GOARCH=arm GOARM=6 go build -ldflags="-s -w" -o actisense-reader-arm32v6 cmd/actisense/main.go
+	# Compiling binary file suitable for ARM (Raspberry 2/3/+)
+	@GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o actisense-reader-arm32v7 cmd/actisense/main.go
+	# Compiling binary file suitable for ARM (Raspberry 64bit OS)
+	@GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o actisense-reader-arm64 cmd/actisense/main.go
 
 help: ## Display this help screen
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

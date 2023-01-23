@@ -1,6 +1,7 @@
 package nmea
 
 import (
+	"encoding/binary"
 	"time"
 )
 
@@ -56,4 +57,17 @@ type FrameAssembler interface {
 
 type MessageDecoder interface {
 	Decode(raw RawMessage) (Message, error)
+}
+
+func MarshalRawMessage(raw RawMessage) []byte {
+	b := make([]byte, 8+2+3+len(raw.Data))
+
+	binary.LittleEndian.PutUint64(b, uint64(raw.Time.UnixNano())) // 0 - 7
+	binary.LittleEndian.PutUint32(b, raw.Header.PGN)              // 8,9
+	b[10] = raw.Header.Priority                                   // 10
+	b[11] = raw.Header.Source                                     // 11
+	b[12] = raw.Header.Destination                                // 12
+	copy(b[13:], raw.Data)                                        // 13 - ...
+
+	return b
 }

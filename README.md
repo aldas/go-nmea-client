@@ -36,6 +36,20 @@ Research/check following libraries:
 Useful links:
 1. https://gist.github.com/jackm/f33d6e3a023bfcc680ec3bfa7076e696
 
+## Actisense reader
+
+Compile Actisense reader for different achitectures/platforms.
+```bash
+make actisense-all
+```
+
+Run reader suitable for Raspberry Pi Zero with Canboat PGN database. Only decode PGNs 126996,126998 and output decoded messages as JSON.
+```bash
+./actisense-reader-arm32v6 -pgns canboat.json -filter 126996,126998 -output-format json
+```
+
+NB: you can write data to NMEA bus by sending text to STDIN. Example
+`6,59904,0,255,3,14,f0,01` + `\n` sends PGN 59904 from src 0 to dst 255 requesting PGN 126996 (0x01, 0xf0, 0x14)
 
 ## Example
 
