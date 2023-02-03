@@ -1,0 +1,7 @@
+# candump on Raspberry pi zero (armv6l), Raspbian GNU/Linux 11 (bullseye)
+# Responding device is ESP32-PICO,  https://github.com/ttlappalainen/NMEA2000/blob/master/Examples/TemperatureMonitor/TemperatureMonitor.ino
+{"version":"4.9.1","units":"std","showLookupValues":false}
+INFO 2023-02-02T08:59:02.609Z [analyzer] Assuming normal format with one line per frame
+{"timestamp":"2023-02-02-08:59:02.609","prio":6,"src":254,"dst":255,"pgn":59904,"description":"ISO Request","fields":{"PGN":126996}}
+{"timestamp":"2023-02-02-08:59:02.609","prio":6,"src":22,"dst":255,"pgn":126996,"description":"Product Information","fields":{"NMEA 2000 Version":2.101,"Product Code":100,"Model ID":"Simple temp monitor","Software Version Code":"1.2.0.21 (2022-09-30)","Model Version":"1.1.0.0 (2022-09-30)","Model Serial Code":"98754321","Certification Level":0,"Load Equivalency":1}}
+{"timestamp":"2023-02-02-08:59:02.609","prio":5,"src":22,"dst":255,"pgn":130311,"description":"Environmental Parameters","fields":{"SID":1,"Temperature Source":"Main Cabin Temperature","Temperature":22.50,"Humidity":131.068}}

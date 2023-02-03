@@ -41,13 +41,15 @@ actisense: ## builds Actisense reader utility (for current architecture)
 	@go build -o actisense-reader cmd/actisense/main.go
 
 actisense-all: ## builds Actisense reader utility (for different architectures)
-	@GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags="-s -w" -o actisense-reader-mips32 cmd/actisense/main.go
+	# Compiling binary file suitable for AMD64
 	@GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o actisense-reader-amd64 cmd/actisense/main.go
-	# Compiling binary file suitable for ARM (Raspberry PI zero)
+	# Compiling binary file suitable for MIPS32 (softfloat)
+	@GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags="-s -w" -o actisense-reader-mips32 cmd/actisense/main.go
+	# Compiling binary file suitable for ARM32v6 (Raspberry PI zero)
 	@GOOS=linux GOARCH=arm GOARM=6 go build -ldflags="-s -w" -o actisense-reader-arm32v6 cmd/actisense/main.go
-	# Compiling binary file suitable for ARM (Raspberry 2/3/+)
+	# Compiling binary file suitable for ARM32v7 (Raspberry 2/3/+)
 	@GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o actisense-reader-arm32v7 cmd/actisense/main.go
-	# Compiling binary file suitable for ARM (Raspberry 64bit OS)
+	# Compiling binary file suitable for ARM64 (Raspberry 64bit OS)
 	@GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o actisense-reader-arm64 cmd/actisense/main.go
 
 help: ## Display this help screen

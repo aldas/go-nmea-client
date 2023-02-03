@@ -1,0 +1,24 @@
+# candump on Raspberry pi zero (armv6l), Raspbian GNU/Linux 11 (bullseye)
+# Responding device is ESP32-PICO,  https://github.com/ttlappalainen/NMEA2000/blob/master/Examples/TemperatureMonitor/TemperatureMonitor.ino
+  can0  18EAFFFE   [3]  14 F0 01
+  can0  19F01416   [8]  00 86 35 08 64 00 53 69
+  can0  19F01416   [8]  01 6D 70 6C 65 20 74 65
+  can0  19F01416   [8]  02 6D 70 20 6D 6F 6E 69
+  can0  19F01416   [8]  03 74 6F 72 FF FF FF FF
+  can0  19F01416   [8]  04 FF FF FF FF FF FF FF
+  can0  19F01416   [8]  05 FF FF 31 2E 32 2E 30
+  can0  19F01416   [8]  06 2E 32 31 20 28 32 30
+  can0  19F01416   [8]  07 32 32 2D 30 39 2D 33
+  can0  19F01416   [8]  08 30 29 FF FF FF FF FF
+  can0  19F01416   [8]  09 FF FF FF FF FF FF 31
+  can0  19F01416   [8]  0A 2E 31 2E 30 2E 30 20
+  can0  19F01416   [8]  0B 28 32 30 32 32 2D 30
+  can0  19F01416   [8]  0C 39 2D 33 30 29 FF FF
+  can0  19F01416   [8]  0D FF FF FF FF FF FF FF
+  can0  19F01416   [8]  0E FF FF FF 39 38 37 35
+  can0  19F01416   [8]  0F 34 33 32 31 FF FF FF
+  can0  19F01416   [8]  10 FF FF FF FF FF FF FF
+  can0  19F01416   [8]  11 FF FF FF FF FF FF FF
+  can0  19F01416   [8]  12 FF FF FF FF FF FF FF
+  can0  19F01416   [8]  13 00 01 FF FF FF FF FF
+  can0  15FD0716   [8]  01 C4 7D 73 FF 7F FF FF

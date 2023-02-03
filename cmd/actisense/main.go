@@ -27,6 +27,7 @@ func main() {
 	onlyRead := flag.Bool("read-only", false, "only reads device/file and does not write into it")
 	onlyRaw := flag.Bool("raw-only", false, "prints only raw message (does not parse to pgn)")
 	noShowPNG := flag.Bool("np", false, "do not print parsed PNGs")
+	noAddressMapper := flag.Bool("dam", false, "disable address mapper")
 	isFile := flag.Bool("is-file", false, "consider device as ordinary file")
 	inputFormat := flag.String("input-format", "ngt", "in which format packet are read (ngt, n2k-bin, n2k-ascii)")
 	deviceAddr := flag.String("device", "/dev/ttyUSB0", "path to Actisense NGT-1 USB device")
@@ -106,7 +107,7 @@ func main() {
 		config.ReceiveDataTimeout = 100 * time.Millisecond
 	}
 
-	var device actisense.RawMessageReaderWriter
+	var device nmea.RawMessageReaderWriter
 	switch *inputFormat {
 	case "ngt", "n2k-bin":
 		device = actisense.NewBinaryDeviceWithConfig(reader, config)
@@ -123,13 +124,27 @@ func main() {
 	fmt.Printf("# Starting to read device: %v\n", *deviceAddr)
 	time.Sleep(1 * time.Second)
 
+	isAddressMapperEnabled := noAddressMapper == nil || !*noAddressMapper
+	var addressMapper *nmea.AddressMapper
+	if isAddressMapperEnabled {
+		addressMapper = nmea.NewAddressMapper(device)
+		fmt.Printf("# Starting address mapper process\n")
+		go func(ctx context.Context) {
+			if err := addressMapper.Run(ctx); err != nil {
+				fmt.Printf("# AddressMapper ended with error: %v\n", err)
+			}
+		}(ctx)
+	}
+
 	if onlyRead != nil && !*onlyRead {
-		go scanLines(device)
+		fmt.Printf("# Starting STDIN process\n")
+		go handleSTDIO(device, addressMapper)
 	}
 
 	msgCount := uint64(0)
 	errorCountDecode := uint64(0)
 	errorCountRead := uint64(0)
+	nodesBySource := map[uint8]nmea.Node{}
 	for {
 		rawMessage, err := device.ReadRawMessage(ctx)
 		msgCount++
@@ -149,8 +164,27 @@ func main() {
 		}
 		errorCountRead = 0
 
+		if isAddressMapperEnabled {
+			if msgCount == 5 {
+				addressMapper.Initialize()
+			} else if msgCount > 5 {
+				isNodeChanged, err := addressMapper.Process(rawMessage)
+				if err != nil {
+					fmt.Printf("# Error at addressMapper processing: %v\n", err)
+				}
+				if isNodeChanged {
+					nodesBySource = addressMapper.NodesInUseBySource()
+				}
+			}
+		}
+
 		if filter != nil && !contains(filter, rawMessage.Header.PGN) {
 			continue
+		}
+
+		var nodeNAME uint64
+		if node, ok := nodesBySource[rawMessage.Header.Source]; ok {
+			nodeNAME = node.NAME
 		}
 
 		if *onlyRaw {
@@ -179,7 +213,7 @@ func main() {
 			case "canboat":
 				b, _ = canboat.MarshalRawMessage(rawMessage)
 			}
-			fmt.Printf("# unknown PGN: %v (msgCount: %v, errCount: %v)\n", rawMessage.Header.PGN, msgCount, errorCountDecode)
+			fmt.Printf("# unknown PGN: %v NodeNAME: %v (msgCount: %v, errCount: %v)\n", rawMessage.Header.PGN, nodeNAME, msgCount, errorCountDecode)
 			fmt.Printf("%s\n", b)
 			continue
 		}
@@ -187,13 +221,14 @@ func main() {
 		if *noShowPNG {
 			continue
 		}
+		pgn.NodeNAME = nodeNAME
 
 		var b []byte
 		switch *outputFormat {
 		case "json":
 			b, err = json.Marshal(pgn)
 		case "canboat":
-			b, _ = canboat.MarshalRawMessage(rawMessage) // FIXME: as raw and not as canboat json
+			b, err = canboat.MarshalRawMessage(rawMessage) // FIXME: as raw and not as canboat json
 		}
 		if err != nil {
 			log.Fatal(err)
@@ -203,11 +238,19 @@ func main() {
 	fmt.Printf("# Finishing, number of processed messages: %v, errors: %v\n", msgCount, errorCountDecode)
 }
 
-func scanLines(device actisense.RawMessageWriter) {
+func handleSTDIO(device nmea.RawMessageWriter, addressMapper *nmea.AddressMapper) {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
+			continue
+		}
+		if line == "!nodes" {
+			nodes := addressMapper.Nodes()
+			fmt.Printf("# Known nodes: %v\n", len(nodes))
+			for _, n := range nodes {
+				fmt.Printf("# node: NAME: %v, source: %v\n", n.NAME, n.Source)
+			}
 			continue
 		}
 		msg, err := parseLine(line)

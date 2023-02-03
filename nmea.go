@@ -41,6 +41,17 @@ type RawMessage struct {
 
 // Message is parsed value of PGN packet(s). Message could be assembled from multiple RawMessage instances.
 type Message struct {
+	// NodeNAME is unique identifier (ISO Address Claim) for Node in NMEA bus.
+	//
+	// Helps to identify which physical/logical  device/node was author/source of that message. CanBusHeader.Source is
+	// not reliable to identify who/what sent the message as source is "randomly" assigned/claimed with ISO address
+	// claim process
+	//
+	// Value `0` means that Node NAME was unknown. For example AddressMapper may have not yet been able to process NAME
+	// for that source. For small/fixed NMEA networks this is perfectly fine as you always know what was the actual source
+	// for this Message (PGN).
+	NodeNAME uint64 `json:"node_name"`
+
 	Header CanBusHeader `json:"header"`
 	Fields FieldValues  `json:"fields"`
 }

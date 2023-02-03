@@ -310,14 +310,16 @@ func crc(data []byte) uint8 {
 // Canboat notes:
 // The following startup command reverse engineered from Actisense NMEAreader.
 // It instructs the BinaryFormatDevice to clear its PGN message TX list, thus it starts sending all PGNs.
+//
+// Actisense own documentation:
+// Page 14: ACommsCommand_SetOperatingMode
+// https://www.actisense.com/wp-content/uploads/2020/01/ActisenseComms-SDK-User-Manual-Issue-1.07-1.pdf
 func (d *BinaryFormatDevice) Initialize() error {
-	// Page 14: ACommsCommand_SetOperatingMode
-	// https://www.actisense.com/wp-content/uploads/2020/01/ActisenseComms-SDK-User-Manual-Issue-1.07-1.pdf
 	clearPGNFilter := []byte{ // `Receive All Transfer` Operating Mode
 		cmdDeviceMessageSend, // Op code (NGT specific message)
 		3,                    // length
-		0x11,                 // msg byte 1, meaning `operating mode`
-		0x02,                 // msg byte 2, meaning 'receive all' (2 bytes)
+		0x11,                 // msg byte 1, command `operating mode`
+		0x02,                 // msg byte 2, argument 'receive all' (2 bytes)
 		0x00,                 // msg byte 3
 	}
 	return d.writeBstMessage(clearPGNFilter)

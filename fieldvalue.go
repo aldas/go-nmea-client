@@ -261,7 +261,7 @@ func (d *RawData) DecodeStringLAU(bitOffset uint16) (string, uint16, error) {
 		}
 		return s, readBits, err
 	case 1: // utf8/ascii
-		// trip trailing 0x0 and 0xFF off. these mean "no data"
+		// trim trailing 0x0 and 0xFF off. these mean "no data"
 		usableBytesLen := 0
 		for _, b := range rawBytes {
 			if b == 0 || b == 0xFF {
