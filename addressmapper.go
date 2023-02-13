@@ -214,7 +214,7 @@ func (m *AddressMapper) Run(ctx context.Context) error {
 				return errors.New("address mapper request channel is closed unexpectedly")
 			}
 			if err := m.nmeaDevice.Write(msg); err != nil {
-				fmt.Printf("address mapper writer (PGN: %v), err: %v\n", msg.Header.PGN, err)
+				fmt.Printf("# address mapper writer (PGN: %v), err: %v\n", msg.Header.PGN, err)
 			}
 
 		case <-ctx.Done():
@@ -234,7 +234,7 @@ type busSlot struct {
 	lastPacket time.Time
 }
 
-func (m *AddressMapper) Initialize() {
+func (m *AddressMapper) BroadcastIsoAddressClaimRequest() {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 

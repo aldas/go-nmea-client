@@ -1,55 +1,55 @@
 # go-nmea-client
-Go client to read NMEA 2000 messages from canbus interfaces or usb devices
 
 > WORK IN PROGRESS
 > Only public because including private Go library is too much of a hustle for CI
 
-> Relies heavily on work done by https://github.com/canboat/canboat developers (basically is port of CanBoat)
+Go library to read NMEA 2000 messages from SocketCAN interfaces or usb devices (Actisense NGT1/W2K-1 etc).
 
+In addition, this repository contains command line application [actisense-reader](./actisense/main.go) to provide
+following features:
 
-## TODO
+* Can read multiple Actisense protocols:
+    * NGT1 binary,
+    * N2K Ascii,
+    * N2K Binary,
+    * Raw ASCII
+* Can output read raw frames/messages as:
+    * JSON,
+    * HEX,
+    * BASE64,
+    * CanBoat format
+* Can decode CAN messages to fields with CanBoat PGN database
+* Can output decoded messages fields as: 
+  * JSON (stdout)
+  * CSV file (each PGN has own csv file). columns (fields) can be customized
+* Can send STDIN input to CAN interface/device
+* Can do basic NMEA2000 bus NODE mapping (which devices/nodes exist in bus)
+    * Can list known nodes (send `!nodes` as input)
+    * Can request nodes NAMES from STDIN (send `!addr-claim` as input)
 
-* Canboat Field type `VARIABLE` printing. This field has value as integer that references other PGN field by their order.
-* Assembling of ISO TP and Fastpacket frames into complete message
-* Better test coverage
+## Disclaimer
 
-
-Research/check following libraries:
-
-* CAN libraries
-
-1. https://github.com/algleason/canlib (7) (socketcan) BSD2
-2. https://github.com/angelodlfrtr/go-can (4) (serial, socketcan) MIT?  
-   uses https://github.com/brutella/can
-3. https://github.com/brutella/can (133) (socketcan) MIT
-4. https://github.com/go-daq/canbus (16) BSD3  (socketcan)  no deps
-5. https://github.com/einride/can-go (socketcan) MIT
-
-* NMEA libraries
-
-1. https://github.com/canboat/canboat (307) Apache2 (nmea2000) lang: C
-2. https://github.com/timmathews/argo GPL3 (nmea2000)  lang: GO
-3. https://github.com/adrianmo/go-nmea (147) MIT (nmea0183 only)
-4. https://github.com/pilebones/go-nmea (2) GPL3 (nmea0183 only)
-5. https://github.com/BertoldVdb/go-ais (18) MIT (nmea0183 only)
-
-Useful links:
-1. https://gist.github.com/jackm/f33d6e3a023bfcc680ec3bfa7076e696
+This repository exists only because of [CanBoat](https://github.com/canboat/canboat) authors. They have done a lot of
+work to acquire knowledge of NMEA2000 protocol and made it free.
 
 ## Actisense reader
 
-Compile Actisense reader for different achitectures/platforms.
+Compile Actisense reader for different achitectures/platforms (AMD64,ARM32v6,ARM32v7,ARM64,MIPS32 (softfloat)).
+
 ```bash
 make actisense-all
 ```
 
-Run reader suitable for Raspberry Pi Zero with Canboat PGN database. Only decode PGNs 126996,126998 and output decoded messages as JSON.
+Run reader suitable for Raspberry Pi Zero with Canboat PGN database (canboat.json). Only decode PGNs 126996,126998 and output decoded
+messages as JSON.
+
 ```bash
-./actisense-reader-arm32v6 -pgns canboat.json -filter 126996,126998 -output-format json
+./actisense-reader-arm32v6 -pgns ./canboat.json -filter 126996,126998 -output-format json
 ```
 
-NB: you can write data to NMEA bus by sending text to STDIN. Example
-`6,59904,0,255,3,14,f0,01` + `\n` sends PGN 59904 from src 0 to dst 255 requesting PGN 126996 (0x01, 0xf0, 0x14)
+* You can write data to NMEA bus by sending text to STDIN. Example `6,59904,0,255,3,14,f0,01` + `\n` sends PGN 59904 from src 0 to dst 255 requesting PGN 126996 (0x01, 0xf0, 0x14)
+* `!nodes` - lists all knowns node NAME and their associated Source values
+* `!addr-claim` - sends broadcast request for ISO Address Claim 
 
 ## Example
 
@@ -111,27 +111,31 @@ func main() {
 }
 ```
 
-
 ## Useful commands
 
 ### Actisense reader utility
 
 Build command line utility for your current arch
+
 ```bash 
 make actisense
 ```
 
-Create Actisense reader that can be run on MIPS architecture (Teltonika RUT955 router ,CPU: Atheros Wasp, MIPS 74Kc, 550 MHz)
+Create Actisense reader that can be run on MIPS architecture (Teltonika RUT955 router ,CPU: Atheros Wasp, MIPS 74Kc, 550
+MHz)
+
 ```bash
 GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags="-s -w" -o actisense-reader-mips cmd/actisense/main.go
 ```
 
 Help about arguments:
+
 ```bash
 ./actisense-reader -help
 ```
 
 Example usage:
+
 ```bash 
 ./actisense-reader -pgns=canboat/testdata/canboat.json \
    -device="actisense/testdata/actisense_n2kascii_20221028_10s.txt" \
@@ -139,8 +143,32 @@ Example usage:
    -output-format=json \
    -input-format=n2k-ascii
 ```
-This is instructs reader to treat device `actisense/testdata/actisense_n2kascii_20221028_10s.txt` as an ordinary file instead
-of serial device. All input read from device is decoded as `Actisense N2K` binary protocol (Actisense [W2K-1](https://actisense.com/products/w2k-1-nmea-2000-wifi-gateway/) device can output this)
+
+This is instructs reader to treat device `actisense/testdata/actisense_n2kascii_20221028_10s.txt` as an ordinary file
+instead
+of serial device. All input read from device is decoded as `Actisense N2K` binary protocol (
+Actisense [W2K-1](https://actisense.com/products/w2k-1-nmea-2000-wifi-gateway/) device can output this)
 and print output in JSON format.
 
+# Research/check following libraries:
 
+* CAN libraries
+
+1. https://github.com/algleason/canlib (7) (socketcan) BSD2
+2. https://github.com/angelodlfrtr/go-can (4) (serial, socketcan) MIT?  
+   uses https://github.com/brutella/can
+3. https://github.com/brutella/can (133) (socketcan) MIT
+4. https://github.com/go-daq/canbus (16) BSD3  (socketcan)  no deps
+5. https://github.com/einride/can-go (socketcan) MIT
+
+* NMEA libraries
+
+1. https://github.com/canboat/canboat (307) Apache2 (nmea2000) lang: C
+2. https://github.com/timmathews/argo GPL3 (nmea2000)  lang: GO
+3. https://github.com/adrianmo/go-nmea (147) MIT (nmea0183 only)
+4. https://github.com/pilebones/go-nmea (2) GPL3 (nmea0183 only)
+5. https://github.com/BertoldVdb/go-ais (18) MIT (nmea0183 only)
+
+Useful links:
+
+1. https://gist.github.com/jackm/f33d6e3a023bfcc680ec3bfa7076e696

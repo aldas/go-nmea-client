@@ -50,6 +50,15 @@ func TestFieldValue_AsFloat64(t *testing.T) {
 			expect:   0,
 			expectOK: false,
 		},
+		{
+			name: "nok, EnumValue to float64",
+			given: FieldValue{ID: "x", Type: "STRING", Value: EnumValue{
+				Value: 1,
+				Code:  "A",
+			}},
+			expect:   1,
+			expectOK: true,
+		},
 	}
 
 	for _, tc := range testCases {

@@ -312,6 +312,12 @@ func TestParseRawMessages(t *testing.T) {
 				Data: []uint8{0x2, 0x0, 0xef, 0x1, 0x1, 0x0},
 			},
 		},
+		{
+			name:        "nok, actual length 8!=10",
+			when:        "9313020df101ff0c1f23d30908ff0700ff7f0000ffffa6",
+			expect:      nmea.RawMessage{},
+			expectError: "data length byte value is different from actual length, 8!=10",
+		},
 	}
 
 	for _, tc := range testCases {

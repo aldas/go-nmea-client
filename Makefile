@@ -38,22 +38,23 @@ coverhtml: ## Generate global code coverage report in HTML
 	./scripts/coverage.sh html
 
 actisense: ## builds Actisense reader utility (for current architecture)
-	@go build -o actisense-reader cmd/actisense/main.go
+	@go build -o actisense-reader cmd/actisense/main.go cmd/actisense/csv.go
 
 actisense-all: ## builds Actisense reader utility (for different architectures)
 	# Compiling binary file suitable for AMD64
-	@GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o actisense-reader-amd64 cmd/actisense/main.go
+	@GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o actisense-reader-amd64 cmd/actisense/main.go cmd/actisense/csv.go
 	# Compiling binary file suitable for MIPS32 (softfloat)
-	@GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags="-s -w" -o actisense-reader-mips32 cmd/actisense/main.go
+	@GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags="-s -w" -o actisense-reader-mips32 cmd/actisense/main.go cmd/actisense/csv.go
 	# Compiling binary file suitable for ARM32v6 (Raspberry PI zero)
-	@GOOS=linux GOARCH=arm GOARM=6 go build -ldflags="-s -w" -o actisense-reader-arm32v6 cmd/actisense/main.go
+	@GOOS=linux GOARCH=arm GOARM=6 go build -ldflags="-s -w" -o actisense-reader-arm32v6 cmd/actisense/main.go cmd/actisense/csv.go
 	# Compiling binary file suitable for ARM32v7 (Raspberry 2/3/+)
-	@GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o actisense-reader-arm32v7 cmd/actisense/main.go
+	@GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o actisense-reader-arm32v7 cmd/actisense/main.go cmd/actisense/csv.go
 	# Compiling binary file suitable for ARM64 (Raspberry 64bit OS)
-	@GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o actisense-reader-arm64 cmd/actisense/main.go
+	@GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o actisense-reader-arm64 cmd/actisense/main.go cmd/actisense/csv.go
 
 help: ## Display this help screen
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-download-canboat-pgns: # Downloads latest Canboat PNGs definitions (pgns.json) from Canboat repository
-	@curl https://raw.githubusercontent.com/canboat/canboat/master/docs/canboat.json -o canboat/testdata/canboat.json
+download-canboat-pgns: # Downloads Canboat PNG definitions (pgns.json) from Canboat repository
+	# download canboat v4.10.0 PGNs
+	@wget -O canboat/testdata/canboat.json https://raw.githubusercontent.com/canboat/canboat/v4.10.0/docs/canboat.json

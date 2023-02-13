@@ -63,6 +63,8 @@ func (f FieldValue) AsFloat64() (float64, bool) {
 		return float64(v), true
 	case time.Time:
 		return float64(v.UnixNano()), true
+	case EnumValue:
+		return float64(v.Value), true
 	}
 	return 0, false
 }

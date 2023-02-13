@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/aldas/go-nmea-client"
@@ -16,6 +17,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -33,6 +35,7 @@ func main() {
 	deviceAddr := flag.String("device", "/dev/ttyUSB0", "path to Actisense NGT-1 USB device")
 	pgnsPath := flag.String("pgns", "", "path to Canboat pgns.json file")
 	pgnFilter := flag.String("filter", "", "comma separated list of PGNs to filter")
+	csvFieldsRaw := flag.String("csv-fields", "", "list of PGNs and their fields to be written in CSV. `129025:time_ms,latitude,longitude;65280:time_ms,manufacturerCode,industryCode`")
 	outputFormat := flag.String("output-format", "json", "in which format raw and decoded packet should be printed out (json, canboat, hex, base64)")
 	baudRate := flag.Int("baud", 115200, "device baud rate.")
 	flag.Parse()
@@ -73,6 +76,17 @@ func main() {
 	case "ngt", "n2k-bin", "n2k-ascii":
 	default:
 		log.Fatal("unknown input format type given\n")
+	}
+
+	var csvFields csvPGNs
+	if csvFieldsRaw != nil {
+		csvFields, err = parseCSVFieldsRaw(*csvFieldsRaw)
+		if err != nil {
+			log.Fatalf("%v\n", err)
+		}
+		for _, cf := range csvFields {
+			filter = append(filter, cf.PGN)
+		}
 	}
 
 	switch *outputFormat {
@@ -129,11 +143,22 @@ func main() {
 	if isAddressMapperEnabled {
 		addressMapper = nmea.NewAddressMapper(device)
 		fmt.Printf("# Starting address mapper process\n")
-		go func(ctx context.Context) {
-			if err := addressMapper.Run(ctx); err != nil {
+		go func(ctx context.Context, am *nmea.AddressMapper) {
+			if err := am.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 				fmt.Printf("# AddressMapper ended with error: %v\n", err)
 			}
-		}(ctx)
+		}(ctx, addressMapper)
+		go func(ctx context.Context, am *nmea.AddressMapper) {
+			// After 1 sec delay send ISO Address claim to all Nodes on bus to learn their NAME values
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(1 * time.Second):
+				fmt.Printf("# Broadcasting ISO Address claim\n")
+				am.BroadcastIsoAddressClaimRequest()
+			}
+
+		}(ctx, addressMapper)
 	}
 
 	if onlyRead != nil && !*onlyRead {
@@ -164,17 +189,14 @@ func main() {
 		}
 		errorCountRead = 0
 
+		isNodeChanged := false
 		if isAddressMapperEnabled {
-			if msgCount == 5 {
-				addressMapper.Initialize()
-			} else if msgCount > 5 {
-				isNodeChanged, err := addressMapper.Process(rawMessage)
-				if err != nil {
-					fmt.Printf("# Error at addressMapper processing: %v\n", err)
-				}
-				if isNodeChanged {
-					nodesBySource = addressMapper.NodesInUseBySource()
-				}
+			isNodeChanged, err = addressMapper.Process(rawMessage)
+			if err != nil {
+				fmt.Printf("# Error at addressMapper processing: %v\n", err)
+			}
+			if isNodeChanged {
+				nodesBySource = addressMapper.NodesInUseBySource()
 			}
 		}
 
@@ -185,6 +207,9 @@ func main() {
 		var nodeNAME uint64
 		if node, ok := nodesBySource[rawMessage.Header.Source]; ok {
 			nodeNAME = node.NAME
+			if isNodeChanged {
+				fmt.Printf("# New or changed Node: %+v\n", node)
+			}
 		}
 
 		if *onlyRaw {
@@ -223,6 +248,13 @@ func main() {
 		}
 		pgn.NodeNAME = nodeNAME
 
+		if csvFieldsRaw != nil {
+			if fields, cpgn, ok := csvFields.Match(pgn, rawMessage.Time); ok {
+				if err := writeCSV(cpgn, fields); err != nil {
+					log.Fatal(err)
+				}
+			}
+		}
 		var b []byte
 		switch *outputFormat {
 		case "json":
@@ -241,17 +273,21 @@ func main() {
 func handleSTDIO(device nmea.RawMessageWriter, addressMapper *nmea.AddressMapper) {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
 			continue
 		}
 		if line == "!nodes" {
 			nodes := addressMapper.Nodes()
+			sort.Sort(nodesBySrc(nodes))
+
 			fmt.Printf("# Known nodes: %v\n", len(nodes))
 			for _, n := range nodes {
 				fmt.Printf("# node: NAME: %v, source: %v\n", n.NAME, n.Source)
 			}
 			continue
+		} else if strings.HasPrefix(line, "!addr-claim") {
+			addressMapper.BroadcastIsoAddressClaimRequest()
 		}
 		msg, err := parseLine(line)
 		if err != nil {
@@ -342,3 +378,9 @@ func contains[T comparable](elems []T, v T) bool {
 	}
 	return false
 }
+
+type nodesBySrc nmea.Nodes
+
+func (v nodesBySrc) Len() int           { return len(v) }
+func (v nodesBySrc) Swap(i, j int)      { v[i], v[j] = v[j], v[i] }
+func (v nodesBySrc) Less(i, j int) bool { return v[i].Source < v[j].Source }

@@ -326,6 +326,10 @@ func (d *BinaryFormatDevice) Initialize() error {
 }
 
 func (d *BinaryFormatDevice) Write(msg nmea.RawMessage) error {
+	if d.config.DebugLogRawMessageBytes {
+		fmt.Printf("# DEBUG sending raw message: %+v\n", msg)
+	}
+
 	header := msg.Header
 
 	dataLen := len(msg.Data)
