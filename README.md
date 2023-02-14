@@ -3,9 +3,11 @@
 > WORK IN PROGRESS
 > Only public because including private Go library is too much of a hustle for CI
 
+-----
+
 Go library to read NMEA 2000 messages from SocketCAN interfaces or usb devices (Actisense NGT1/W2K-1 etc).
 
-In addition, this repository contains command line application [actisense-reader](./actisense/main.go) to provide
+In addition, this repository contains command line application [n2k-reader](./cmd/n2kreader/main.go) to provide
 following features:
 
 * Can read different input formats:
