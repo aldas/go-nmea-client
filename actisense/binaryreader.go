@@ -26,6 +26,8 @@ const (
 
 	// cmdN2KMessageReceived identifies that packet is received/incoming NMEA200 data message as N2K binary format.
 	cmdN2KMessageReceived = 0xD0
+	// cmdN2KMessageReceived identifies that packet is sent/outgoing NMEA200 data message as N2K binary format.
+	cmdN2KMessageSend = 0xD1
 
 	// cmdDeviceMessageReceived identifies that received packet is (BEMCMD) Actisense NGT specific message
 	cmdDeviceMessageReceived = 0xA0
@@ -67,6 +69,9 @@ type Config struct {
 	DebugLogRawMessageBytes bool
 	// OutputActisenseMessages instructs device to output Actisense own messages
 	OutputActisenseMessages bool
+
+	// IsN2KWriter instructs device to write/send messages to NMEA200 bus as N2K binary format (used by Actisense W2K-1)
+	IsN2KWriter bool
 }
 
 // NewBinaryDevice creates new instance of Actisense device using binary formats (NGT1 and N2K binary)
@@ -334,7 +339,11 @@ func (d *BinaryFormatDevice) Write(msg nmea.RawMessage) error {
 
 	dataLen := len(msg.Data)
 	buf := make([]byte, dataLen+2+6)
-	buf[0] = cmdNGTMessageSend // Op code
+
+	buf[0] = cmdNGTMessageSend // NGT1 device, NGT binary format
+	if d.config.IsN2KWriter {
+		buf[0] = cmdN2KMessageSend // W2K1 device, N2K Binary format
+	}
 	buf[1] = byte(dataLen + 6) // length
 
 	buf[2] = header.Priority        // 1

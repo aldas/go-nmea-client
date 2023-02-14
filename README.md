@@ -141,12 +141,28 @@ Help about arguments:
 
 Example usage:
 
+Read device `/dev/ttyUSB0` as `ngt` format, filter out PGNS 59904,60928 and output decoded messages as `json`:
+```bash
+./n2k-reader-arm32v6 -pgns canboat.json -input-format ngt -device "/dev/ttyUSB0" -filter 59904,60928 -output-format json
+```
+
+Read file as `n2k-ascii` format and output decoded messages as `json` format:
 ```bash 
 ./n2k-reader -pgns=canboat/testdata/canboat.json \
    -device="actisense/testdata/actisense_n2kascii_20221028_10s.txt" \
    -is-file=true \
    -output-format=json \
    -input-format=n2k-ascii
+```
+
+Read file as `canboat-raw` format, filter out PGNS 127245,127250,129026 and append decoded messages as new lines to `CSV` files with given fields as columns:
+```bash
+./n2k-reader-amd64 -pgns canboat/testdata/canboat.json \
+  -device canboat/testdata/canboat_format.txt \
+  -np \
+  -is-file \
+  -input-format canboat-raw \
+  -csv-fields "127245:time_ms,position,directionOrder;127250:time_ms,heading;129026:time_ms,cog,sog"
 ```
 
 This is instructs reader to treat device `actisense/testdata/actisense_n2kascii_20221028_10s.txt` as an ordinary file

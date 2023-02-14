@@ -42,9 +42,8 @@ func writeCSV(field csvPGNFields, values []string) error {
 
 	csvwriter := csv.NewWriter(csvFile)
 
-	fmt.Printf("fileExists: %v\n", fileExists)
 	if !fileExists {
-		if err := csvwriter.Write(append([]string{"time_ms"}, field.fields...)); err != nil {
+		if err := csvwriter.Write(field.fields); err != nil {
 			return fmt.Errorf("csv failed to write header, err: %s", err)
 		}
 	}

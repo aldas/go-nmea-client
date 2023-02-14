@@ -251,17 +251,17 @@ func main() {
 			continue
 		}
 
-		if *noShowPNG {
-			continue
-		}
 		pgn.NodeNAME = nodeNAME
-
 		if isCSV {
 			if fields, cpgn, ok := csvFields.Match(pgn, rawMessage.Time); ok {
 				if err := writeCSV(cpgn, fields); err != nil {
 					log.Fatal(err)
 				}
 			}
+		}
+
+		if *noShowPNG {
+			continue
 		}
 		var b []byte
 		switch *outputFormat {
