@@ -8,11 +8,14 @@ Go library to read NMEA 2000 messages from SocketCAN interfaces or usb devices (
 In addition, this repository contains command line application [actisense-reader](./actisense/main.go) to provide
 following features:
 
-* Can read multiple Actisense protocols:
-    * NGT1 binary,
-    * N2K Ascii,
-    * N2K Binary,
-    * Raw ASCII
+* Can read different input formats:
+  * SocketCAN format (TODO)
+  * CanBoat raw format
+  * Actisense format:
+      * NGT1 Binary,
+      * N2K Ascii,
+      * N2K Binary,
+      * Raw ASCII
 * Can output read raw frames/messages as:
     * JSON,
     * HEX,
@@ -32,19 +35,19 @@ following features:
 This repository exists only because of [CanBoat](https://github.com/canboat/canboat) authors. They have done a lot of
 work to acquire knowledge of NMEA2000 protocol and made it free.
 
-## Actisense reader
+## NMEA2000 reader
 
-Compile Actisense reader for different achitectures/platforms (AMD64,ARM32v6,ARM32v7,ARM64,MIPS32 (softfloat)).
+Compile NMEA2000 reader for different achitectures/platforms (AMD64,ARM32v6,ARM32v7,ARM64,MIPS32 (softfloat)).
 
 ```bash
-make actisense-all
+make n2kreader-all
 ```
 
 Run reader suitable for Raspberry Pi Zero with Canboat PGN database (canboat.json). Only decode PGNs 126996,126998 and output decoded
 messages as JSON.
 
 ```bash
-./actisense-reader-arm32v6 -pgns ./canboat.json -filter 126996,126998 -output-format json
+./n2kreader-reader-arm32v6 -pgns ./canboat.json -filter 126996,126998 -output-format json
 ```
 
 * You can write data to NMEA bus by sending text to STDIN. Example `6,59904,0,255,3,14,f0,01` + `\n` sends PGN 59904 from src 0 to dst 255 requesting PGN 126996 (0x01, 0xf0, 0x14)
@@ -118,26 +121,26 @@ func main() {
 Build command line utility for your current arch
 
 ```bash 
-make actisense
+make build-reader
 ```
 
 Create Actisense reader that can be run on MIPS architecture (Teltonika RUT955 router ,CPU: Atheros Wasp, MIPS 74Kc, 550
 MHz)
 
 ```bash
-GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags="-s -w" -o actisense-reader-mips cmd/actisense/main.go
+GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags="-s -w" -o n2k-reader-mips cmd/n2kreader/main.go
 ```
 
 Help about arguments:
 
 ```bash
-./actisense-reader -help
+./n2k-reader -help
 ```
 
 Example usage:
 
 ```bash 
-./actisense-reader -pgns=canboat/testdata/canboat.json \
+./n2k-reader -pgns=canboat/testdata/canboat.json \
    -device="actisense/testdata/actisense_n2kascii_20221028_10s.txt" \
    -is-file=true \
    -output-format=json \

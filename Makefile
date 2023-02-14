@@ -37,20 +37,20 @@ coverage: ## Generate global code coverage report
 coverhtml: ## Generate global code coverage report in HTML
 	./scripts/coverage.sh html
 
-actisense: ## builds Actisense reader utility (for current architecture)
-	@go build -o actisense-reader cmd/actisense/main.go cmd/actisense/csv.go
+build-reader: ## builds Actisense reader utility (for current architecture)
+	@go build -ldflags="-s -w" -o n2k-reader cmd/n2kreader/main.go cmd/n2kreader/csv.go
 
-actisense-all: ## builds Actisense reader utility (for different architectures)
+build-reader-all: ## builds NMEA2000 reader utility (for different architectures)
 	# Compiling binary file suitable for AMD64
-	@GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o actisense-reader-amd64 cmd/actisense/main.go cmd/actisense/csv.go
+	@GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o n2k-reader-amd64 cmd/n2kreader/main.go cmd/n2kreader/csv.go
 	# Compiling binary file suitable for MIPS32 (softfloat)
-	@GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags="-s -w" -o actisense-reader-mips32 cmd/actisense/main.go cmd/actisense/csv.go
+	@GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags="-s -w" -o n2k-reader-mips32 cmd/n2kreader/main.go cmd/n2kreader/csv.go
 	# Compiling binary file suitable for ARM32v6 (Raspberry PI zero)
-	@GOOS=linux GOARCH=arm GOARM=6 go build -ldflags="-s -w" -o actisense-reader-arm32v6 cmd/actisense/main.go cmd/actisense/csv.go
+	@GOOS=linux GOARCH=arm GOARM=6 go build -ldflags="-s -w" -o n2k-reader-arm32v6 cmd/n2kreader/main.go cmd/n2kreader/csv.go
 	# Compiling binary file suitable for ARM32v7 (Raspberry 2/3/+)
-	@GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o actisense-reader-arm32v7 cmd/actisense/main.go cmd/actisense/csv.go
+	@GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o n2k-reader-arm32v7 cmd/n2kreader/main.go cmd/n2kreader/csv.go
 	# Compiling binary file suitable for ARM64 (Raspberry 64bit OS)
-	@GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o actisense-reader-arm64 cmd/actisense/main.go cmd/actisense/csv.go
+	@GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o n2k-reader-arm64 cmd/n2kreader/main.go cmd/n2kreader/csv.go
 
 help: ## Display this help screen
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

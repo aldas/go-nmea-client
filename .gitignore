@@ -19,4 +19,4 @@
 # Ignore Canboat PGNs file https://github.com/canboat/canboat/blob/master/docs/canboat.json
 canboat/testdata/canboat.json
 
-actisense-reader*
+n2k-reader*

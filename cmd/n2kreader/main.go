@@ -31,7 +31,7 @@ func main() {
 	noShowPNG := flag.Bool("np", false, "do not print parsed PNGs")
 	noAddressMapper := flag.Bool("dam", false, "disable address mapper")
 	isFile := flag.Bool("is-file", false, "consider device as ordinary file")
-	inputFormat := flag.String("input-format", "ngt", "in which format packet are read (ngt, n2k-bin, n2k-ascii)")
+	inputFormat := flag.String("input-format", "ngt", "in which format packet are read (ngt, n2k-bin, n2k-ascii, canboat-raw)")
 	deviceAddr := flag.String("device", "/dev/ttyUSB0", "path to Actisense NGT-1 USB device")
 	pgnsPath := flag.String("pgns", "", "path to Canboat pgns.json file")
 	pgnFilter := flag.String("filter", "", "comma separated list of PGNs to filter")
@@ -73,12 +73,13 @@ func main() {
 	}
 
 	switch *inputFormat {
-	case "ngt", "n2k-bin", "n2k-ascii":
+	case "ngt", "n2k-bin", "n2k-ascii", "canboat-raw":
 	default:
 		log.Fatal("unknown input format type given\n")
 	}
 
 	var csvFields csvPGNs
+	isCSV := false
 	if csvFieldsRaw != nil {
 		csvFields, err = parseCSVFieldsRaw(*csvFieldsRaw)
 		if err != nil {
@@ -86,6 +87,9 @@ func main() {
 		}
 		for _, cf := range csvFields {
 			filter = append(filter, cf.PGN)
+		}
+		if len(csvFields) > 0 {
+			isCSV = true
 		}
 	}
 
@@ -123,6 +127,8 @@ func main() {
 
 	var device nmea.RawMessageReaderWriter
 	switch *inputFormat {
+	case "canboat-raw":
+		device = canboat.NewCanBoatReader(reader)
 	case "ngt", "n2k-bin":
 		device = actisense.NewBinaryDeviceWithConfig(reader, config)
 	case "n2k-ascii":
@@ -148,20 +154,22 @@ func main() {
 				fmt.Printf("# AddressMapper ended with error: %v\n", err)
 			}
 		}(ctx, addressMapper)
-		go func(ctx context.Context, am *nmea.AddressMapper) {
-			// After 1 sec delay send ISO Address claim to all Nodes on bus to learn their NAME values
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(1 * time.Second):
-				fmt.Printf("# Broadcasting ISO Address claim\n")
-				am.BroadcastIsoAddressClaimRequest()
-			}
+		if !*isFile {
+			go func(ctx context.Context, am *nmea.AddressMapper) {
+				// After 1 sec delay send ISO Address claim to all Nodes on bus to learn their NAME values
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(1 * time.Second):
+					fmt.Printf("# Broadcasting ISO Address claim\n")
+					am.BroadcastIsoAddressClaimRequest()
+				}
 
-		}(ctx, addressMapper)
+			}(ctx, addressMapper)
+		}
 	}
 
-	if onlyRead != nil && !*onlyRead {
+	if onlyRead != nil && !*onlyRead && !*isFile {
 		fmt.Printf("# Starting STDIN process\n")
 		go handleSTDIO(device, addressMapper)
 	}
@@ -173,12 +181,12 @@ func main() {
 	for {
 		rawMessage, err := device.ReadRawMessage(ctx)
 		msgCount++
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
 			errorCountRead++
-			if err == context.Canceled {
+			if errors.Is(err, context.Canceled) {
 				return
 			}
 			fmt.Printf("# Error ReadRawMessage: %v\n", err)
@@ -248,7 +256,7 @@ func main() {
 		}
 		pgn.NodeNAME = nodeNAME
 
-		if csvFieldsRaw != nil {
+		if isCSV {
 			if fields, cpgn, ok := csvFields.Match(pgn, rawMessage.Time); ok {
 				if err := writeCSV(cpgn, fields); err != nil {
 					log.Fatal(err)
