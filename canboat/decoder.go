@@ -292,7 +292,6 @@ func (d *Decoder) postProcessFields(decodedFields []decoded) (nmea.FieldValues, 
 			}
 			fields = append(fields, nmea.FieldValue{
 				ID:    f.Field.ID,
-				Type:  "FIELDSET",
 				Value: fieldsets,
 			})
 			continue

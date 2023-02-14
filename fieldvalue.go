@@ -35,8 +35,7 @@ type FieldValues []FieldValue
 
 // FieldValue hold extracted and processed value for PGN field
 type FieldValue struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
+	ID string `json:"id"`
 	// normalized to:
 	// * string,
 	// * float64,

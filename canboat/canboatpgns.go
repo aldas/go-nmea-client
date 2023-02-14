@@ -338,17 +338,17 @@ func (f *Field) decodeNumber(rawData nmea.RawData, bitOffset uint16) (nmea.Field
 	if f.Signed {
 		tmpIntValue += int64(f.Offset)
 		if f.Resolution == 1 {
-			return nmea.FieldValue{ID: f.ID, Type: "INT64", Value: tmpIntValue}, nil
+			return nmea.FieldValue{ID: f.ID, Value: tmpIntValue}, nil
 		}
 		value = float64(tmpIntValue) * f.Resolution
 	} else {
 		tmpUIntValue += uint64(f.Offset)
 		if f.Resolution == 1 {
-			return nmea.FieldValue{ID: f.ID, Type: "UINT64", Value: tmpUIntValue}, nil
+			return nmea.FieldValue{ID: f.ID, Value: tmpUIntValue}, nil
 		}
 		value = float64(tmpUIntValue) * f.Resolution
 	}
-	return nmea.FieldValue{ID: f.ID, Type: "FLOAT64", Value: value}, nil
+	return nmea.FieldValue{ID: f.ID, Value: value}, nil
 }
 
 func (f *Field) decodeBytes(rawData nmea.RawData, bitOffset uint16) (nmea.FieldValue, uint16, error) {
@@ -358,7 +358,6 @@ func (f *Field) decodeBytes(rawData nmea.RawData, bitOffset uint16) (nmea.FieldV
 	}
 	return nmea.FieldValue{
 		ID:    f.ID,
-		Type:  "BYTES",
 		Value: value,
 	}, bits, nil
 }
@@ -370,7 +369,6 @@ func (f *Field) decodeTime(rawData nmea.RawData, bitOffset uint16) (nmea.FieldVa
 	}
 	return nmea.FieldValue{
 		ID:    f.ID,
-		Type:  "DURATION",
 		Value: value,
 	}, nil
 }
@@ -382,7 +380,6 @@ func (f *Field) decodeDate(rawData nmea.RawData, bitOffset uint16) (nmea.FieldVa
 	}
 	return nmea.FieldValue{
 		ID:    f.ID,
-		Type:  "DATE",
 		Value: str,
 	}, nil
 }
@@ -395,7 +392,6 @@ func (f *Field) decodeMMSI(rawData nmea.RawData, bitOffset uint16) (nmea.FieldVa
 	// FIXME: should we validate that MMSI is in range of 0 to 999_999_999
 	return nmea.FieldValue{
 		ID:    f.ID,
-		Type:  "UINT64",
 		Value: mmsi,
 	}, nil
 }
@@ -407,7 +403,6 @@ func (f *Field) decodeStringFIX(rawData nmea.RawData, bitOffset uint16) (nmea.Fi
 	}
 	return nmea.FieldValue{
 		ID:    f.ID,
-		Type:  "STRING",
 		Value: str,
 	}, nil
 }
@@ -419,7 +414,6 @@ func (f *Field) decodeStringLZ(rawData nmea.RawData, bitOffset uint16) (nmea.Fie
 	}
 	return nmea.FieldValue{
 		ID:    f.ID,
-		Type:  "STRING",
 		Value: str,
 	}, readBits, nil
 }
@@ -431,7 +425,6 @@ func (f *Field) decodeStringLAU(rawData nmea.RawData, bitOffset uint16) (nmea.Fi
 	}
 	return nmea.FieldValue{
 		ID:    f.ID,
-		Type:  "STRING",
 		Value: str,
 	}, readBits, nil
 }
@@ -443,7 +436,6 @@ func (f *Field) decodeDecimal(rawData nmea.RawData, bitOffset uint16) (nmea.Fiel
 	}
 	return nmea.FieldValue{
 		ID:    f.ID,
-		Type:  "UINT64",
 		Value: decimal,
 	}, nil
 }
@@ -455,7 +447,6 @@ func (f *Field) decodeFloat(rawData nmea.RawData, bitOffset uint16) (nmea.FieldV
 	}
 	return nmea.FieldValue{
 		ID:    f.ID,
-		Type:  "FLOAT64",
 		Value: float,
 	}, nil
 }

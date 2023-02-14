@@ -225,7 +225,7 @@ func TestField_Decode(t *testing.T) {
 				Resolution: 1,
 				FieldType:  FieldTypeNumber,
 			},
-			expect:         nmea.FieldValue{ID: "manufacturerCode", Type: "UINT64", Value: uint64(1855)},
+			expect:         nmea.FieldValue{ID: "manufacturerCode", Value: uint64(1855)},
 			expectReadBits: 11,
 		},
 		{
@@ -240,7 +240,7 @@ func TestField_Decode(t *testing.T) {
 				Resolution: 1,
 				FieldType:  FieldTypeNumber,
 			},
-			expect:         nmea.FieldValue{ID: "pitch", Type: "INT64", Value: int64(-905)},
+			expect:         nmea.FieldValue{ID: "pitch", Value: int64(-905)},
 			expectReadBits: 16,
 		},
 		{
@@ -255,7 +255,7 @@ func TestField_Decode(t *testing.T) {
 				Resolution: 0.0001,
 				FieldType:  FieldTypeNumber,
 			},
-			expect:         nmea.FieldValue{ID: "pitch", Type: "FLOAT64", Value: -0.0905},
+			expect:         nmea.FieldValue{ID: "pitch", Value: -0.0905},
 			expectReadBits: 16,
 		},
 		{
@@ -270,7 +270,7 @@ func TestField_Decode(t *testing.T) {
 				Resolution: 1,
 				FieldType:  FieldTypeLookup,
 			},
-			expect:         nmea.FieldValue{ID: "manufacturerCode", Type: "UINT64", Value: uint64(1855)},
+			expect:         nmea.FieldValue{ID: "manufacturerCode", Value: uint64(1855)},
 			expectReadBits: 11,
 		},
 		{
@@ -285,7 +285,7 @@ func TestField_Decode(t *testing.T) {
 				Resolution: 1,
 				FieldType:  FieldTypeReserved,
 			},
-			expect:         nmea.FieldValue{ID: "reserved", Type: "BYTES", Value: []byte{3}},
+			expect:         nmea.FieldValue{ID: "reserved", Value: []byte{3}},
 			expectReadBits: 2,
 		},
 	}

@@ -16,43 +16,43 @@ func TestFieldValue_AsFloat64(t *testing.T) {
 	}{
 		{
 			name:     "ok, FLOAT64 to float64",
-			given:    FieldValue{ID: "x", Type: "FLOAT64", Value: 0.123},
+			given:    FieldValue{ID: "x", Value: 0.123},
 			expect:   0.123,
 			expectOK: true,
 		},
 		{
 			name:     "ok, INT64 to float64",
-			given:    FieldValue{ID: "x", Type: "INT64", Value: int64(123)},
+			given:    FieldValue{ID: "x", Value: int64(123)},
 			expect:   123,
 			expectOK: true,
 		},
 		{
 			name:     "ok, UINT64 to float64",
-			given:    FieldValue{ID: "x", Type: "UINT64", Value: uint64(123)},
+			given:    FieldValue{ID: "x", Value: uint64(123)},
 			expect:   123,
 			expectOK: true,
 		},
 		{
 			name:     "ok, DURATION to float64",
-			given:    FieldValue{ID: "x", Type: "DURATION", Value: 23 * time.Second},
+			given:    FieldValue{ID: "x", Value: 23 * time.Second},
 			expect:   23_000_000_000,
 			expectOK: true,
 		},
 		{
 			name:     "ok, TIME to float64",
-			given:    FieldValue{ID: "x", Type: "TIME", Value: test_test.UTCTime(1668428165)},
+			given:    FieldValue{ID: "x", Value: test_test.UTCTime(1668428165)},
 			expect:   1668428165_000000000,
 			expectOK: true,
 		},
 		{
 			name:     "nok, STRING to float64",
-			given:    FieldValue{ID: "x", Type: "STRING", Value: "hi"},
+			given:    FieldValue{ID: "x", Value: "hi"},
 			expect:   0,
 			expectOK: false,
 		},
 		{
 			name: "nok, EnumValue to float64",
-			given: FieldValue{ID: "x", Type: "STRING", Value: EnumValue{
+			given: FieldValue{ID: "x", Value: EnumValue{
 				Value: 1,
 				Code:  "A",
 			}},
