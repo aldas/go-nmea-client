@@ -37,6 +37,7 @@ func main() {
 	pgnFilter := flag.String("filter", "", "comma separated list of PGNs to filter")
 	csvFieldsRaw := flag.String("csv-fields", "", "list of PGNs and their fields to be written in CSV. `129025:time_ms,latitude,longitude;65280:time_ms,manufacturerCode,industryCode`")
 	outputFormat := flag.String("output-format", "json", "in which format raw and decoded packet should be printed out (json, canboat, hex, base64)")
+	throttle := flag.Duration("throttle", 0, "Throttle output of messages by PGN into given duration window")
 	baudRate := flag.Int("baud", 115200, "device baud rate.")
 	flag.Parse()
 
@@ -174,6 +175,7 @@ func main() {
 		go handleSTDIO(device, addressMapper)
 	}
 
+	throttled := map[uint64]time.Time{}
 	msgCount := uint64(0)
 	errorCountDecode := uint64(0)
 	errorCountRead := uint64(0)
@@ -236,6 +238,15 @@ func main() {
 			continue
 		}
 
+		if throttle != nil && *throttle > 0 {
+			tKey := uint64(rawMessage.Header.PGN)<<2 | uint64(rawMessage.Header.Source)
+			lastTime, ok := throttled[tKey]
+			if ok && !rawMessage.Time.After(lastTime) {
+				continue
+			}
+			throttled[tKey] = rawMessage.Time.Add(*throttle)
+		}
+
 		pgn, err := decoder.Decode(rawMessage)
 		if err != nil {
 			errorCountDecode++
@@ -285,13 +296,18 @@ func handleSTDIO(device nmea.RawMessageWriter, addressMapper *nmea.AddressMapper
 		if line == "" {
 			continue
 		}
-		if line == "!nodes" {
+		if strings.HasPrefix(line, "!nodes") {
 			nodes := addressMapper.Nodes()
 			sort.Sort(nodesBySrc(nodes))
 
+			isDetailed := strings.HasSuffix(line, "-details")
 			fmt.Printf("# Known nodes: %v\n", len(nodes))
 			for _, n := range nodes {
-				fmt.Printf("# node: NAME: %v, source: %v\n", n.NAME, n.Source)
+				if isDetailed {
+					fmt.Printf("# node: NAME: %v, source: %v, NAME: %+v\n", n.NAME, n.Source, n.Name)
+				} else {
+					fmt.Printf("# node: NAME: %v, source: %v\n", n.NAME, n.Source)
+				}
 			}
 			continue
 		} else if strings.HasPrefix(line, "!addr-claim") {

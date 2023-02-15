@@ -8,7 +8,6 @@ import (
 	"github.com/aldas/go-nmea-client"
 	"math"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -73,10 +72,18 @@ func (c csvPGNs) Match(pgn nmea.Message, now time.Time) ([]string, csvPGNFields,
 	for _, fID := range found.fields {
 		v := ""
 		switch fID {
+		case "time":
+			v = strconv.FormatInt(now.Unix(), 10)
 		case "time_ms":
 			v = strconv.FormatInt(now.UnixMilli(), 10)
 		case "time_nano":
 			v = strconv.FormatInt(now.UnixNano(), 10)
+		case "src":
+			v = strconv.FormatInt(int64(pgn.Header.Source), 10)
+		case "dst":
+			v = strconv.FormatInt(int64(pgn.Header.Destination), 10)
+		case "prio":
+			v = strconv.FormatInt(int64(pgn.Header.Priority), 10)
 		default:
 			fv, ok := pgn.Fields.FindByID(fID)
 			if ok {
@@ -133,7 +140,7 @@ func parseCSVFieldsRaw(raw string) ([]csvPGNFields, error) {
 		if len(tmpFields) == 0 {
 			continue
 		}
-		sort.Strings(tmpFields)
+
 		hashBytes := md5.Sum([]byte(strings.Join(tmpFields, ",")))
 		hash := hex.EncodeToString(hashBytes[:])
 

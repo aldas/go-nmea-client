@@ -23,8 +23,8 @@ func TestParseCSVFieldsRaw(t *testing.T) {
 				},
 				{
 					PGN:      65280,
-					fileName: "65280_effb47af178ca0a9142dccb96e270cf3.csv",
-					fields:   []string{"industryCode", "manufacturerCode"},
+					fileName: "65280_9d3436508a611ed40cb8b58aa5df44a5.csv",
+					fields:   []string{"manufacturerCode", "industryCode"},
 				},
 			},
 		},
