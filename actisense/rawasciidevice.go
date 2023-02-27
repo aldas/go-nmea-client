@@ -150,6 +150,7 @@ func parseRawASCII(raw []byte, now time.Time) (nmea.RawFrame, bool, error) {
 	return nmea.RawFrame{
 		Time:   now,
 		Header: canHeader,
+		Length: uint8(n),
 		Data:   data,
 	}, false, nil
 }

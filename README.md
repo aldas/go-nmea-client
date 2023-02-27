@@ -45,6 +45,21 @@ Compile NMEA2000 reader for different achitectures/platforms (AMD64,ARM32v6,ARM3
 make n2kreader-all
 ```
 
+Create Actisense reader that can be run on MIPS architecture (Teltonika RUT955 router ,CPU: Atheros Wasp, MIPS 74Kc, 550
+MHz)
+
+```bash
+GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags="-s -w" -o n2k-reader-mips cmd/n2kreader/main.go
+```
+
+Help about arguments:
+
+```bash
+./n2k-reader -help
+```
+
+### Example usage:
+
 Run reader suitable for Raspberry Pi Zero with Canboat PGN database (canboat.json). Only decode PGNs 126996,126998 and output decoded
 messages as JSON.
 
@@ -54,9 +69,41 @@ messages as JSON.
 
 * You can write data to NMEA bus by sending text to STDIN. Example `6,59904,0,255,3,14,f0,01` + `\n` sends PGN 59904 from src 0 to dst 255 requesting PGN 126996 (0x01, 0xf0, 0x14)
 * `!nodes` - lists all knowns node NAME and their associated Source values
-* `!addr-claim` - sends broadcast request for ISO Address Claim 
+* `!addr-claim` - sends broadcast request for ISO Address Claim
 
-## Example
+Read device `/dev/ttyUSB0` as `ngt` format, filter out PGNS 59904,60928 and output decoded messages as `json`:
+```bash
+./n2k-reader-arm32v6 -pgns canboat.json -input-format ngt -device "/dev/ttyUSB0" -filter 59904,60928 -output-format json
+```
+
+Read file as `n2k-ascii` format and output decoded messages as `json` format:
+```bash 
+./n2k-reader -pgns=canboat/testdata/canboat.json \
+   -device="actisense/testdata/actisense_n2kascii_20221028_10s.txt" \
+   -is-file=true \
+   -output-format=json \
+   -input-format=n2k-ascii
+```
+
+Read file as `canboat-raw` format, filter out PGNS 127245,127250,129026 and append decoded messages as new lines to `CSV` files with given fields as columns:
+```bash
+./n2k-reader-amd64 -pgns canboat/testdata/canboat.json \
+  -device canboat/testdata/canboat_format.txt \
+  -np \
+  -is-file \
+  -input-format canboat-raw \
+  -csv-fields "127245:_time_ms,position,directionOrder;127250:_time_ms(100ms),heading;129026:_time_ms,cog,sog"
+```
+
+This is instructs reader to treat device `actisense/testdata/actisense_n2kascii_20221028_10s.txt` as an ordinary file
+instead
+of serial device. All input read from device is decoded as `Actisense N2K` binary protocol (
+Actisense [W2K-1](https://actisense.com/products/w2k-1-nmea-2000-wifi-gateway/) device can output this)
+and print output in JSON format.
+
+
+
+## Library example
 
 ```go
 func main() {
@@ -73,7 +120,7 @@ func main() {
 		Baud: 115200,
 		// ReadTimeout is duration that Read call is allowed to block. Device has different timeout for situation when
 		// there is no activity on bus. Can not be smaller than 100ms
-		ReadTimeout: 5 * time.Millisecond,
+		ReadTimeout: 100 * time.Millisecond,
 		Size:        8,
 	})
 	if err != nil {
@@ -115,61 +162,6 @@ func main() {
 	}
 }
 ```
-
-## Useful commands
-
-### Actisense reader utility
-
-Build command line utility for your current arch
-
-```bash 
-make build-reader
-```
-
-Create Actisense reader that can be run on MIPS architecture (Teltonika RUT955 router ,CPU: Atheros Wasp, MIPS 74Kc, 550
-MHz)
-
-```bash
-GOOS=linux GOARCH=mips GOMIPS=softfloat go build -ldflags="-s -w" -o n2k-reader-mips cmd/n2kreader/main.go
-```
-
-Help about arguments:
-
-```bash
-./n2k-reader -help
-```
-
-Example usage:
-
-Read device `/dev/ttyUSB0` as `ngt` format, filter out PGNS 59904,60928 and output decoded messages as `json`:
-```bash
-./n2k-reader-arm32v6 -pgns canboat.json -input-format ngt -device "/dev/ttyUSB0" -filter 59904,60928 -output-format json
-```
-
-Read file as `n2k-ascii` format and output decoded messages as `json` format:
-```bash 
-./n2k-reader -pgns=canboat/testdata/canboat.json \
-   -device="actisense/testdata/actisense_n2kascii_20221028_10s.txt" \
-   -is-file=true \
-   -output-format=json \
-   -input-format=n2k-ascii
-```
-
-Read file as `canboat-raw` format, filter out PGNS 127245,127250,129026 and append decoded messages as new lines to `CSV` files with given fields as columns:
-```bash
-./n2k-reader-amd64 -pgns canboat/testdata/canboat.json \
-  -device canboat/testdata/canboat_format.txt \
-  -np \
-  -is-file \
-  -input-format canboat-raw \
-  -csv-fields "127245:time_ms,position,directionOrder;127250:time_ms,heading;129026:time_ms,cog,sog"
-```
-
-This is instructs reader to treat device `actisense/testdata/actisense_n2kascii_20221028_10s.txt` as an ordinary file
-instead
-of serial device. All input read from device is decoded as `Actisense N2K` binary protocol (
-Actisense [W2K-1](https://actisense.com/products/w2k-1-nmea-2000-wifi-gateway/) device can output this)
-and print output in JSON format.
 
 # Research/check following libraries:
 

@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestParseCSVFieldsRaw(t *testing.T) {
@@ -14,17 +15,26 @@ func TestParseCSVFieldsRaw(t *testing.T) {
 	}{
 		{
 			name:  "ok",
-			given: "129025:latitude,longitude;65280:manufacturerCode,industryCode",
+			given: "129025:latitude,longitude;65280:_time_ms(100ms),manufacturerCode,industryCode",
 			expect: []csvPGNFields{
 				{
 					PGN:      129025,
 					fileName: "129025_4fab33037f3639c5414b9f62a96a4263.csv",
-					fields:   []string{"latitude", "longitude"},
+					names:    []string{"latitude", "longitude"},
+					fields: []field{
+						{name: "latitude"},
+						{name: "longitude"},
+					},
 				},
 				{
 					PGN:      65280,
-					fileName: "65280_9d3436508a611ed40cb8b58aa5df44a5.csv",
-					fields:   []string{"manufacturerCode", "industryCode"},
+					fileName: "65280_43bc0dc3dcedc05f5d70bd34b04f3835.csv",
+					names:    []string{"_time_ms", "manufacturerCode", "industryCode"},
+					fields: []field{
+						{name: "_time_ms", truncate: 100 * time.Millisecond},
+						{name: "manufacturerCode"},
+						{name: "industryCode"},
+					},
 				},
 			},
 		},

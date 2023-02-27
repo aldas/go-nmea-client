@@ -15,24 +15,24 @@ import (
 
 type csvPGNs []csvPGNFields
 
-func writeCSV(field csvPGNFields, values []string) error {
+func writeCSV(cpf csvPGNFields, values []string) error {
 	fileExists := false
-	fi, err := os.Stat(field.fileName)
+	fi, err := os.Stat(cpf.fileName)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("csv file check failure, err: %s", err)
 	}
 	if fi != nil {
 		fileExists = true
 		if fi.IsDir() {
-			return fmt.Errorf("csv file overlaps with directory, file: %s", field.fileName)
+			return fmt.Errorf("csv file overlaps with directory, file: %s", cpf.fileName)
 		}
 	}
 
 	var csvFile *os.File
 	if fileExists {
-		csvFile, err = os.OpenFile(field.fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		csvFile, err = os.OpenFile(cpf.fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	} else {
-		csvFile, err = os.Create(field.fileName)
+		csvFile, err = os.Create(cpf.fileName)
 	}
 	if err != nil {
 		return err
@@ -42,7 +42,7 @@ func writeCSV(field csvPGNFields, values []string) error {
 	csvwriter := csv.NewWriter(csvFile)
 
 	if !fileExists {
-		if err := csvwriter.Write(field.fields); err != nil {
+		if err := csvwriter.Write(cpf.names); err != nil {
 			return fmt.Errorf("csv failed to write header, err: %s", err)
 		}
 	}
@@ -71,21 +71,33 @@ func (c csvPGNs) Match(pgn nmea.Message, now time.Time) ([]string, csvPGNFields,
 
 	for _, fID := range found.fields {
 		v := ""
-		switch fID {
-		case "time":
-			v = strconv.FormatInt(now.Unix(), 10)
-		case "time_ms":
-			v = strconv.FormatInt(now.UnixMilli(), 10)
-		case "time_nano":
-			v = strconv.FormatInt(now.UnixNano(), 10)
-		case "src":
+		switch fID.name {
+		case "_time":
+			tmpNow := now
+			if fID.truncate > 0 {
+				tmpNow = now.Truncate(fID.truncate)
+			}
+			v = strconv.FormatInt(tmpNow.Unix(), 10)
+		case "_time_ms":
+			tmpNow := now
+			if fID.truncate > 0 {
+				tmpNow = now.Truncate(fID.truncate)
+			}
+			v = strconv.FormatInt(tmpNow.UnixMilli(), 10)
+		case "_time_nano":
+			tmpNow := now
+			if fID.truncate > 0 {
+				tmpNow = now.Truncate(fID.truncate)
+			}
+			v = strconv.FormatInt(tmpNow.UnixNano(), 10)
+		case "_src":
 			v = strconv.FormatInt(int64(pgn.Header.Source), 10)
-		case "dst":
+		case "_dst":
 			v = strconv.FormatInt(int64(pgn.Header.Destination), 10)
-		case "prio":
+		case "_prio":
 			v = strconv.FormatInt(int64(pgn.Header.Priority), 10)
 		default:
-			fv, ok := pgn.Fields.FindByID(fID)
+			fv, ok := pgn.Fields.FindByID(fID.name)
 			if ok {
 				switch vv := fv.Value.(type) {
 				case string:
@@ -111,7 +123,13 @@ func (c csvPGNs) Match(pgn nmea.Message, now time.Time) ([]string, csvPGNFields,
 type csvPGNFields struct {
 	PGN      uint32
 	fileName string
-	fields   []string
+	names    []string
+	fields   []field
+}
+
+type field struct {
+	name     string
+	truncate time.Duration
 }
 
 func parseCSVFieldsRaw(raw string) ([]csvPGNFields, error) {
@@ -129,24 +147,43 @@ func parseCSVFieldsRaw(raw string) ([]csvPGNFields, error) {
 			return nil, fmt.Errorf("csv fields: failed to parse PGN, err: %w", err)
 		}
 
-		tmpFields := make([]string, 0)
+		tmpNames := make([]string, 0)
+		tmpFields := make([]field, 0)
 		for _, f := range strings.Split(fieldsRaw, ",") {
 			f = strings.TrimSpace(f)
 			if f == "" {
 				continue
 			}
-			tmpFields = append(tmpFields, f)
+			var trunc time.Duration
+			if strings.HasPrefix(f, "_time") {
+				start := strings.IndexByte(f, '(')
+				end := strings.LastIndexByte(f, ')')
+				if start != -1 && start+1 < end {
+					if tRaw, err := time.ParseDuration(f[start+1 : end]); err != nil {
+						return nil, fmt.Errorf("csv fields: invalid _time format, err: %w", err)
+					} else {
+						trunc = tRaw
+					}
+				}
+				f = f[0:start]
+			}
+			tmpFields = append(tmpFields, field{
+				name:     f,
+				truncate: trunc,
+			})
+			tmpNames = append(tmpNames, f)
 		}
-		if len(tmpFields) == 0 {
+		if len(tmpNames) == 0 {
 			continue
 		}
 
-		hashBytes := md5.Sum([]byte(strings.Join(tmpFields, ",")))
+		hashBytes := md5.Sum([]byte(strings.Join(tmpNames, ",")))
 		hash := hex.EncodeToString(hashBytes[:])
 
 		tmp := csvPGNFields{
 			PGN:      uint32(pgn),
 			fileName: fmt.Sprintf("%v_%v.csv", pgn, hash),
+			names:    tmpNames,
 			fields:   tmpFields,
 		}
 		result = append(result, tmp)

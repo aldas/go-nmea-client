@@ -60,3 +60,38 @@ func TestParseCANID(t *testing.T) {
 		})
 	}
 }
+
+func TestCanBusHeader_Uint32(t *testing.T) {
+	var testCases = []struct {
+		name   string
+		when   CanBusHeader
+		expect uint32
+	}{
+		{
+			name: "ok, 130311",
+			when: CanBusHeader{
+				PGN:         130311, // 0x1FD07
+				Priority:    5,
+				Source:      23,  // 0x17
+				Destination: 255, // 0xFF
+			},
+			expect: 0x15fd0717,
+		},
+		{
+			name: "ok, 130310",
+			when: CanBusHeader{
+				PGN:         130310,
+				Priority:    5,
+				Source:      23,
+				Destination: 255,
+			},
+			expect: 0x15FD0617,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.when.Uint32()
+			assert.Equal(t, tc.expect, result)
+		})
+	}
+}

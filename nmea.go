@@ -26,6 +26,7 @@ type RawFrame struct {
 	Time time.Time
 
 	Header CanBusHeader
+	Length uint8 // 1-8
 	Data   [8]byte
 }
 

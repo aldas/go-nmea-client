@@ -12,6 +12,7 @@ import (
 	"github.com/aldas/go-nmea-client"
 	"github.com/aldas/go-nmea-client/actisense"
 	"github.com/aldas/go-nmea-client/canboat"
+	"github.com/aldas/go-nmea-client/socketcan"
 	"github.com/tarm/serial"
 	"io"
 	"log"
@@ -73,12 +74,6 @@ func main() {
 		fmt.Printf("# Using PGN filter: %v\n", filter)
 	}
 
-	switch *inputFormat {
-	case "ngt", "n2k-bin", "n2k-ascii", "canboat-raw":
-	default:
-		log.Fatal("unknown input format type given\n")
-	}
-
 	var csvFields csvPGNs
 	isCSV := false
 	if csvFieldsRaw != nil {
@@ -100,18 +95,28 @@ func main() {
 		log.Fatal("unknown output format type given\n")
 	}
 
+	switch *inputFormat {
+	case "ngt", "n2k-bin", "n2k-ascii", "canboat-raw", "socketcan":
+	default:
+		log.Fatal("unknown input format type given\n")
+	}
+
 	var reader io.ReadWriteCloser
 	if *isFile {
 		reader, err = os.OpenFile(*deviceAddr, os.O_RDONLY, 0)
 	} else {
-		reader, err = serial.OpenPort(&serial.Config{
-			Name: *deviceAddr,
-			Baud: *baudRate,
-			// ReadTimeout is duration that Read call is allowed to block. Device has different timeout for situation when
-			// there is no activity on bus. Can not be smaller than 100ms
-			ReadTimeout: 100 * time.Millisecond,
-			Size:        8,
-		})
+		switch *inputFormat {
+		case "socketcan":
+		default:
+			reader, err = serial.OpenPort(&serial.Config{
+				Name: *deviceAddr,
+				Baud: *baudRate,
+				// ReadTimeout is duration that Read call is allowed to block. Device has different timeout for situation when
+				// there is no activity on bus. Can not be smaller than 100ms
+				ReadTimeout: 100 * time.Millisecond,
+				Size:        8,
+			})
+		}
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -128,6 +133,8 @@ func main() {
 
 	var device nmea.RawMessageReaderWriter
 	switch *inputFormat {
+	case "socketcan":
+		device = socketcan.NewDevice(*deviceAddr)
 	case "canboat-raw":
 		device = canboat.NewCanBoatReader(reader)
 	case "ngt", "n2k-bin":
