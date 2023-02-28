@@ -54,11 +54,11 @@ func writeCSV(cpf csvPGNFields, values []string) error {
 	return nil
 }
 
-func (c csvPGNs) Match(pgn nmea.Message, now time.Time) ([]string, csvPGNFields, bool) {
+func (c csvPGNs) Match(msg nmea.Message, now time.Time) ([]string, csvPGNFields, bool) {
 	ok := false
 	var found csvPGNFields
 	for _, p := range c {
-		if p.PGN == pgn.Header.PGN {
+		if p.PGN == msg.Header.PGN {
 			found = p
 			ok = true
 			break
@@ -72,6 +72,8 @@ func (c csvPGNs) Match(pgn nmea.Message, now time.Time) ([]string, csvPGNFields,
 	for _, fID := range found.fields {
 		v := ""
 		switch fID.name {
+		case "_node_name":
+			v = strconv.FormatUint(msg.NodeNAME, 10)
 		case "_time":
 			tmpNow := now
 			if fID.truncate > 0 {
@@ -91,13 +93,13 @@ func (c csvPGNs) Match(pgn nmea.Message, now time.Time) ([]string, csvPGNFields,
 			}
 			v = strconv.FormatInt(tmpNow.UnixNano(), 10)
 		case "_src":
-			v = strconv.FormatInt(int64(pgn.Header.Source), 10)
+			v = strconv.FormatInt(int64(msg.Header.Source), 10)
 		case "_dst":
-			v = strconv.FormatInt(int64(pgn.Header.Destination), 10)
+			v = strconv.FormatInt(int64(msg.Header.Destination), 10)
 		case "_prio":
-			v = strconv.FormatInt(int64(pgn.Header.Priority), 10)
+			v = strconv.FormatInt(int64(msg.Header.Priority), 10)
 		default:
-			fv, ok := pgn.Fields.FindByID(fID.name)
+			fv, ok := msg.Fields.FindByID(fID.name)
 			if ok {
 				switch vv := fv.Value.(type) {
 				case string:

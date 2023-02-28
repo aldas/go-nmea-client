@@ -381,7 +381,7 @@ func (d *BinaryFormatDevice) writeBstMessage(data []byte) error {
 		n, err := d.device.Write(packet)
 		if err != nil {
 			if !errors.Is(err, syscall.EAGAIN) {
-				return fmt.Errorf("actisense initialization write failure: %w", err)
+				return fmt.Errorf("actisense write failure: %w", err)
 			}
 			retryCount++
 		}

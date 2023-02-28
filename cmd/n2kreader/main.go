@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/hex"
@@ -169,6 +170,8 @@ func main() {
 				case <-ctx.Done():
 					return
 				case <-time.After(1 * time.Second):
+					am.ToggleWrite()
+
 					fmt.Printf("# Broadcasting ISO Address claim\n")
 					am.BroadcastIsoAddressClaimRequest()
 				}
@@ -237,7 +240,7 @@ func main() {
 			case "canboat":
 				b, _ = canboat.MarshalRawMessage(rawMessage)
 			case "hex":
-				b = []byte(hex.EncodeToString(nmea.MarshalRawMessage(rawMessage)))
+				b = marshalRawHexString(rawMessage, nodeNAME)
 			case "base64":
 				b = []byte(base64.StdEncoding.EncodeToString(nmea.MarshalRawMessage(rawMessage)))
 			}
@@ -287,6 +290,8 @@ func main() {
 			b, err = json.Marshal(pgn)
 		case "canboat":
 			b, err = canboat.MarshalRawMessage(rawMessage) // FIXME: as raw and not as canboat json
+		case "hex":
+			b = marshalRawHexString(rawMessage, nodeNAME)
 		}
 		if err != nil {
 			log.Fatal(err)
@@ -376,6 +381,27 @@ func parseLine(line string) (nmea.RawMessage, error) {
 	msg.Data = data[0:dataLen]
 
 	return msg, nil
+}
+
+func marshalRawHexString(raw nmea.RawMessage, name uint64) []byte {
+	var buf bytes.Buffer
+	buf.WriteString(strconv.FormatInt(raw.Time.UnixNano(), 10))
+	buf.WriteByte(',')
+	buf.WriteString(strconv.FormatUint(name, 10))
+	buf.WriteByte(',')
+	buf.WriteString(strconv.FormatUint(uint64(raw.Header.PGN), 10))
+	buf.WriteByte(',')
+	buf.WriteString(strconv.FormatUint(uint64(raw.Header.Priority), 10))
+	buf.WriteByte(',')
+	buf.WriteString(strconv.FormatUint(uint64(raw.Header.Source), 10))
+	buf.WriteByte(',')
+	buf.WriteString(strconv.FormatUint(uint64(raw.Header.Destination), 10))
+	buf.WriteByte(',')
+	buf.WriteString(strconv.FormatUint(uint64(len(raw.Data)), 10))
+	buf.WriteByte(',')
+	buf.WriteString(hex.EncodeToString(raw.Data))
+
+	return buf.Bytes()
 }
 
 func parseUint8(raw string, min int, max int, name string) (uint8, error) {

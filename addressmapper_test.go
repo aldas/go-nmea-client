@@ -274,3 +274,25 @@ func TestCreateISORequest(t *testing.T) {
 		})
 	}
 }
+
+func TestQueue(t *testing.T) {
+	q := newQueue[int](5)
+
+	q.Enqueue(1)
+
+	item, ok := q.Dequeue()
+	assert.True(t, ok)
+	assert.Equal(t, 1, item)
+
+	q.Enqueue(2)
+	q.Enqueue(3)
+
+	item, ok = q.Dequeue()
+	assert.True(t, ok)
+	assert.Equal(t, 2, item)
+
+	item, ok = q.Dequeue()
+	assert.True(t, ok)
+	assert.Equal(t, 3, item)
+
+}

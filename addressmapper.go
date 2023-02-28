@@ -183,8 +183,13 @@ type AddressMapper struct {
 
 	// when new device is detected we use this channel to send additional PGNs to query information about that node
 	// ask for device name, product info, configuration info, pgn list
-	requestsChan chan RawMessage
-	nmeaDevice   RawMessageWriter
+	requestsChan    chan RawMessage
+	toggleWriteChan chan bool
+
+	writeEnabled bool
+	isRunning    bool
+
+	nmeaDevice RawMessageWriter
 
 	knownNodes   map[uint64]*Node
 	address2node [255]*busSlot
@@ -197,21 +202,68 @@ func NewAddressMapper(nmeaDevice RawMessageWriter) *AddressMapper {
 		mutex: sync.Mutex{},
 		now:   time.Now,
 
-		requestsChan: make(chan RawMessage, addressMapperWriteChannelSize), // TODO: messages could come in bursts. 100+ in very short window for broadcasts (dst=255)
-		nmeaDevice:   nmeaDevice,
+		toggleWriteChan: make(chan bool),
+		requestsChan:    make(chan RawMessage, addressMapperWriteChannelSize), // TODO: messages could come in bursts. 100+ in very short window for broadcasts (dst=255)
+		nmeaDevice:      nmeaDevice,
 
 		knownNodes:   make(map[uint64]*Node),
 		address2node: [255]*busSlot{},
 	}
 }
 
+func (m *AddressMapper) ToggleWrite() {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	m.writeEnabled = !m.writeEnabled
+	if m.isRunning {
+		m.toggleWriteChan <- m.writeEnabled
+	}
+}
+
 // Run starts AddressMapper process and block until context is cancelled or error occurs
 func (m *AddressMapper) Run(ctx context.Context) error {
+	buffer := newQueue[RawMessage](50)
+	writeTimer := time.NewTicker(10 * time.Millisecond)
+
+	m.mutex.Lock()
+	if m.isRunning {
+		return errors.New("address mapper process in already running")
+	}
+	m.isRunning = true
+	defer func() {
+		m.mutex.Lock()
+		m.isRunning = false
+		m.mutex.Unlock()
+	}()
+	enabled := m.writeEnabled
+	m.mutex.Unlock()
+
+	if !enabled {
+		writeTimer.Stop()
+	}
 	for {
 		select {
+		case writeEnabled := <-m.toggleWriteChan:
+			enabled = writeEnabled
+			if enabled {
+				writeTimer.Reset(10 * time.Millisecond)
+			} else {
+				writeTimer.Stop()
+			}
+
 		case msg, ok := <-m.requestsChan:
 			if !ok {
 				return errors.New("address mapper request channel is closed unexpectedly")
+			}
+			if enabled {
+				buffer.Enqueue(msg)
+			}
+
+		case <-writeTimer.C:
+			msg, ok := buffer.Dequeue()
+			if !ok {
+				continue
 			}
 			if err := m.nmeaDevice.Write(msg); err != nil {
 				fmt.Printf("# address mapper writer (PGN: %v), err: %v\n", msg.Header.PGN, err)
@@ -320,7 +372,7 @@ func (m *AddressMapper) processISOAddressClaim(slot *busSlot, raw RawMessage) (b
 	}
 
 	// if we already have not requested, then request product info for that device
-	if slot.productInfoRequested.IsZero() {
+	if m.writeEnabled && slot.productInfoRequested.IsZero() {
 		slot.productInfoRequested = m.now()
 		m.requestsChan <- createISORequest(PGNProductInfo, source)
 	}
@@ -340,7 +392,7 @@ func (m *AddressMapper) processProductInfo(slot *busSlot, raw RawMessage) error 
 	slot.node.ValidProductInfo = true
 
 	// if we already have not requested, then request configuration info for that node
-	if slot.configInfoRequested.IsZero() {
+	if m.writeEnabled && slot.configInfoRequested.IsZero() {
 		slot.configInfoRequested = m.now()
 		m.requestsChan <- createISORequest(PGNConfigurationInformation, raw.Header.Source)
 	}
@@ -360,7 +412,7 @@ func (m *AddressMapper) processConfigurationInfo(slot *busSlot, raw RawMessage) 
 	slot.node.ValidConfigurationInfo = true
 
 	// if we already have not requested, then request PGN list for that node
-	if slot.pgnListRequested.IsZero() {
+	if m.writeEnabled && slot.pgnListRequested.IsZero() {
 		slot.pgnListRequested = m.now()
 		m.requestsChan <- createISORequest(PGNPGNList, raw.Header.Source)
 	}
@@ -444,4 +496,37 @@ func createISORequest(forPGN PGN, destination uint8) RawMessage {
 			uint8((forPGN >> 16) & 0xff),
 		},
 	}
+}
+
+type queue[T any] struct {
+	items  []T
+	length int
+}
+
+func newQueue[T any](length int) *queue[T] {
+	return &queue[T]{
+		items:  make([]T, 0, length),
+		length: length,
+	}
+}
+
+func (q *queue[T]) Enqueue(item T) bool {
+	if len(q.items) == q.length {
+		return false
+	}
+	q.items = append(q.items, item)
+	return true
+}
+
+func (q *queue[T]) Dequeue() (T, bool) {
+	var empty T
+	if len(q.items) == 0 {
+		return empty, false
+	}
+	value := q.items[0]
+
+	q.items[0] = empty
+
+	q.items = q.items[1:]
+	return value, true
 }
