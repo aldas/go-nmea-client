@@ -68,6 +68,16 @@ func TestCanBusHeader_Uint32(t *testing.T) {
 		expect uint32
 	}{
 		{
+			name: "ok, 59904 ISORequest broadcast from nulladdr",
+			when: CanBusHeader{
+				PGN:         uint32(PGNISORequest), // ISO Request
+				Priority:    6,
+				Source:      AddressNull,
+				Destination: AddressGlobal, // everyone/broadcast
+			},
+			expect: 0x18eafffe,
+		},
+		{
 			name: "ok, 130311",
 			when: CanBusHeader{
 				PGN:         130311, // 0x1FD07
@@ -75,17 +85,17 @@ func TestCanBusHeader_Uint32(t *testing.T) {
 				Source:      23,  // 0x17
 				Destination: 255, // 0xFF
 			},
-			expect: 0x15fd0717,
+			expect: 0x15fdff17,
 		},
 		{
 			name: "ok, 130310",
 			when: CanBusHeader{
 				PGN:         130310,
 				Priority:    5,
-				Source:      23,
-				Destination: 255,
+				Source:      23,  // 0x17
+				Destination: 255, // 0xFF
 			},
-			expect: 0x15FD0617,
+			expect: 0x15fdff17,
 		},
 	}
 	for _, tc := range testCases {

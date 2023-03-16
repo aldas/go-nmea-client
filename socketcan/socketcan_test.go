@@ -7,8 +7,7 @@ import (
 	"testing"
 )
 
-// sudo ip link set can0 down
-// sudo /sbin/ip link set can0 up type can bitrate 250000
+// sudo ip link set can0 down && sudo /sbin/ip link set can0 up type can bitrate 250000
 
 func xTestName(t *testing.T) {
 	con, err := NewConnection("can0")

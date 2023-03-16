@@ -21,6 +21,21 @@ const FastRawPacketMaxSize = 223
 
 const ISOTPDataMaxSize = 1785
 
+type PGN uint32
+
+const (
+	PGNISORequest               = PGN(59904)  // 0xEA00
+	PGNISOAddressClaim          = PGN(60928)  // 0xEE00
+	PGNProductInfo              = PGN(126996) // 0x1F014
+	PGNConfigurationInformation = PGN(126998) // 0x1F016
+	PGNPGNList                  = PGN(126464) // 0x1EE00
+
+	// AddressGlobal is broadcast address used to send messages for all nodes on the n2k bus.
+	AddressGlobal = uint8(255)
+	// AddressNull is used for nodes that have not or can not claim address in bus. Used with "Cannot claim ISO address" response.
+	AddressNull = uint8(254)
+)
+
 type RawFrame struct {
 	// Time is when frame was read from NMEA bus. Filled by this library.
 	Time time.Time

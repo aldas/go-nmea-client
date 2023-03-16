@@ -1,30 +1,16 @@
-package nmea
+package addressmapper
 
 import (
 	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/aldas/go-nmea-client"
 	"sync"
 	"time"
 )
 
-const (
-	PGNISORequest               = PGN(59904)
-	PGNISOAddressClaim          = PGN(60928)
-	PGNProductInfo              = PGN(126996)
-	PGNConfigurationInformation = PGN(126998)
-	PGNPGNList                  = PGN(126464)
-
-	// addressGlobal is broadcast address used to send messages for all nodes on the n2k bus.
-	addressGlobal = uint8(255)
-	// addressNull is used for nodes that have not or can not claim address in bus. Used with "Cannot claim ISO address" response.
-	addressNull = uint8(254)
-
-	addressMapperWriteChannelSize = 20
-)
-
-type PGN uint32
+const addressMapperWriteChannelSize = 20
 
 //func (p PGN) asBytes() []byte {
 //	return []byte{
@@ -63,7 +49,7 @@ type ProductInfo struct {
 	LoadEquivalency    uint8 // (8 bits)
 }
 
-func PGN126996ToProductInfo(raw RawMessage) (ProductInfo, error) {
+func PGN126996ToProductInfo(raw nmea.RawMessage) (ProductInfo, error) {
 	if raw.Header.PGN != 126996 {
 		return ProductInfo{}, errors.New("product info can only be created from rawMessage with PGN 126996")
 	}
@@ -73,11 +59,11 @@ func PGN126996ToProductInfo(raw RawMessage) (ProductInfo, error) {
 	}
 
 	NMEA2000Version, err := b.DecodeVariableUint(0, 16)
-	if err != nil && err != ErrValueNoData {
+	if err != nil && err != nmea.ErrValueNoData {
 		return ProductInfo{}, fmt.Errorf("failed to extract NMEA200 version for product info, err: %w", err)
 	}
 	productCode, err := b.DecodeVariableUint(16, 16)
-	if err != nil && err != ErrValueNoData {
+	if err != nil && err != nmea.ErrValueNoData {
 		return ProductInfo{}, fmt.Errorf("failed to extract product code for product info, err: %w", err)
 	}
 
@@ -149,8 +135,8 @@ func (n NodeName) Uint64() uint64 {
 	return binary.BigEndian.Uint64(n.Bytes())
 }
 
-func PGN60928ToNodeName(raw RawMessage) (NodeName, error) {
-	if raw.Header.PGN != uint32(PGNISOAddressClaim) {
+func PGN60928ToNodeName(raw nmea.RawMessage) (NodeName, error) {
+	if raw.Header.PGN != uint32(nmea.PGNISOAddressClaim) {
 		return NodeName{}, errors.New("device name can only be created from rawMessage with PGN 60928")
 	}
 	b := raw.Data
@@ -183,13 +169,13 @@ type AddressMapper struct {
 
 	// when new device is detected we use this channel to send additional PGNs to query information about that node
 	// ask for device name, product info, configuration info, pgn list
-	requestsChan    chan RawMessage
+	requestsChan    chan nmea.RawMessage
 	toggleWriteChan chan bool
 
 	writeEnabled bool
 	isRunning    bool
 
-	nmeaDevice RawMessageWriter
+	nmeaDevice nmea.RawMessageWriter
 
 	knownNodes   map[uint64]*Node
 	address2node [255]*busSlot
@@ -197,13 +183,13 @@ type AddressMapper struct {
 	now func() time.Time
 }
 
-func NewAddressMapper(nmeaDevice RawMessageWriter) *AddressMapper {
+func NewAddressMapper(nmeaDevice nmea.RawMessageWriter) *AddressMapper {
 	return &AddressMapper{
 		mutex: sync.Mutex{},
 		now:   time.Now,
 
 		toggleWriteChan: make(chan bool),
-		requestsChan:    make(chan RawMessage, addressMapperWriteChannelSize), // TODO: messages could come in bursts. 100+ in very short window for broadcasts (dst=255)
+		requestsChan:    make(chan nmea.RawMessage, addressMapperWriteChannelSize), // TODO: messages could come in bursts. 100+ in very short window for broadcasts (dst=255)
 		nmeaDevice:      nmeaDevice,
 
 		knownNodes:   make(map[uint64]*Node),
@@ -223,7 +209,7 @@ func (m *AddressMapper) ToggleWrite() {
 
 // Run starts AddressMapper process and block until context is cancelled or error occurs
 func (m *AddressMapper) Run(ctx context.Context) error {
-	buffer := newQueue[RawMessage](50)
+	buffer := newQueue[nmea.RawMessage](50)
 	writeTimer := time.NewTicker(10 * time.Millisecond)
 
 	m.mutex.Lock()
@@ -265,7 +251,7 @@ func (m *AddressMapper) Run(ctx context.Context) error {
 			if !ok {
 				continue
 			}
-			if err := m.nmeaDevice.Write(msg); err != nil {
+			if err := m.nmeaDevice.WriteRawMessage(ctx, msg); err != nil {
 				fmt.Printf("# address mapper writer (PGN: %v), err: %v\n", msg.Header.PGN, err)
 			}
 
@@ -290,16 +276,16 @@ func (m *AddressMapper) BroadcastIsoAddressClaimRequest() {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	m.requestsChan <- createISORequest(PGNISOAddressClaim, addressGlobal)
+	m.requestsChan <- createISORequest(nmea.PGNISOAddressClaim, nmea.AddressGlobal)
 }
 
-func (m *AddressMapper) Process(raw RawMessage) (bool, error) {
+func (m *AddressMapper) Process(raw nmea.RawMessage) (bool, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	source := raw.Header.Source
 	var slot *busSlot
-	if source >= addressNull { // addresses 254 and 255 have special meaning and does not represent actual address for node
+	if source >= nmea.AddressNull { // addresses 254 and 255 have special meaning and does not represent actual address for node
 		slot = new(busSlot)
 	} else {
 		slot = m.address2node[source]
@@ -311,22 +297,22 @@ func (m *AddressMapper) Process(raw RawMessage) (bool, error) {
 	}
 
 	isBusNodeChanged := false
-	switch PGN(raw.Header.PGN) {
-	case PGNISOAddressClaim:
+	switch nmea.PGN(raw.Header.PGN) {
+	case nmea.PGNISOAddressClaim:
 		isChanged, err := m.processISOAddressClaim(slot, raw)
 		if err != nil {
 			return false, err
 		}
 		isBusNodeChanged = isChanged
-	case PGNProductInfo:
+	case nmea.PGNProductInfo:
 		if err := m.processProductInfo(slot, raw); err != nil {
 			return false, err
 		}
-	case PGNConfigurationInformation:
+	case nmea.PGNConfigurationInformation:
 		if err := m.processConfigurationInfo(slot, raw); err != nil {
 			return false, err
 		}
-	case PGNPGNList:
+	case nmea.PGNPGNList:
 		if err := m.processPGNList(slot, raw); err != nil {
 			return false, err
 		}
@@ -334,7 +320,7 @@ func (m *AddressMapper) Process(raw RawMessage) (bool, error) {
 	return isBusNodeChanged, nil
 }
 
-func (m *AddressMapper) processISOAddressClaim(slot *busSlot, raw RawMessage) (bool, error) {
+func (m *AddressMapper) processISOAddressClaim(slot *busSlot, raw nmea.RawMessage) (bool, error) {
 	name, err := PGN60928ToNodeName(raw)
 	if err != nil {
 		return false, err
@@ -362,7 +348,7 @@ func (m *AddressMapper) processISOAddressClaim(slot *busSlot, raw RawMessage) (b
 		slot.claimed = m.now()
 		isBusNodeChanged = true
 	} else if slot.node.ValidName && currentNode.NAME < slot.node.NAME {
-		slot.node.Source = addressNull // unassign source from old node
+		slot.node.Source = nmea.AddressNull // unassign source from old node
 
 		// b) by J1939 address claim logic this node now claims existing slot as its name is lower
 		currentNode.Source = source
@@ -374,12 +360,12 @@ func (m *AddressMapper) processISOAddressClaim(slot *busSlot, raw RawMessage) (b
 	// if we already have not requested, then request product info for that device
 	if m.writeEnabled && slot.productInfoRequested.IsZero() {
 		slot.productInfoRequested = m.now()
-		m.requestsChan <- createISORequest(PGNProductInfo, source)
+		m.requestsChan <- createISORequest(nmea.PGNProductInfo, source)
 	}
 	return isBusNodeChanged, nil
 }
 
-func (m *AddressMapper) processProductInfo(slot *busSlot, raw RawMessage) error {
+func (m *AddressMapper) processProductInfo(slot *busSlot, raw nmea.RawMessage) error {
 	if slot.node == nil || slot.node.ValidName {
 		return nil
 	}
@@ -394,12 +380,12 @@ func (m *AddressMapper) processProductInfo(slot *busSlot, raw RawMessage) error 
 	// if we already have not requested, then request configuration info for that node
 	if m.writeEnabled && slot.configInfoRequested.IsZero() {
 		slot.configInfoRequested = m.now()
-		m.requestsChan <- createISORequest(PGNConfigurationInformation, raw.Header.Source)
+		m.requestsChan <- createISORequest(nmea.PGNConfigurationInformation, raw.Header.Source)
 	}
 	return nil
 }
 
-func (m *AddressMapper) processConfigurationInfo(slot *busSlot, raw RawMessage) error {
+func (m *AddressMapper) processConfigurationInfo(slot *busSlot, raw nmea.RawMessage) error {
 	if slot.node == nil || slot.node.ValidName {
 		return nil
 	}
@@ -414,13 +400,13 @@ func (m *AddressMapper) processConfigurationInfo(slot *busSlot, raw RawMessage) 
 	// if we already have not requested, then request PGN list for that node
 	if m.writeEnabled && slot.pgnListRequested.IsZero() {
 		slot.pgnListRequested = m.now()
-		m.requestsChan <- createISORequest(PGNPGNList, raw.Header.Source)
+		m.requestsChan <- createISORequest(nmea.PGNPGNList, raw.Header.Source)
 	}
 	return nil
 }
 
-func PGN126998ToConfigurationInfo(raw RawMessage) (ConfigurationInfo, error) {
-	if raw.Header.PGN != uint32(PGNConfigurationInformation) {
+func PGN126998ToConfigurationInfo(raw nmea.RawMessage) (ConfigurationInfo, error) {
+	if raw.Header.PGN != uint32(nmea.PGNConfigurationInformation) {
 		return ConfigurationInfo{}, errors.New("configuration info can only be created from rawMessage with PGN 126998")
 	}
 	instDesc1, offset, err := raw.Data.DecodeStringLAU(0)
@@ -442,7 +428,7 @@ func PGN126998ToConfigurationInfo(raw RawMessage) (ConfigurationInfo, error) {
 	}, nil
 }
 
-func (m *AddressMapper) processPGNList(slot *busSlot, raw RawMessage) error {
+func (m *AddressMapper) processPGNList(slot *busSlot, raw nmea.RawMessage) error {
 	if slot.node == nil || slot.node.ValidName {
 		return nil
 	}
@@ -470,7 +456,7 @@ func (m *AddressMapper) NodesInUseBySource() map[uint8]Node {
 	result := make(map[uint8]Node)
 	for _, n := range m.knownNodes {
 		node := *n
-		if node.Source >= addressNull && !node.ValidName {
+		if node.Source >= nmea.AddressNull && !node.ValidName {
 			continue
 		}
 		result[node.Source] = node
@@ -478,16 +464,16 @@ func (m *AddressMapper) NodesInUseBySource() map[uint8]Node {
 	return result
 }
 
-func createISORequest(forPGN PGN, destination uint8) RawMessage {
-	return RawMessage{
-		Header: CanBusHeader{
-			PGN:      uint32(PGNISORequest),
+func createISORequest(forPGN nmea.PGN, destination uint8) nmea.RawMessage {
+	return nmea.RawMessage{
+		Header: nmea.CanBusHeader{
+			PGN:      uint32(nmea.PGNISORequest),
 			Priority: 6,
 			// https://copperhilltech.com/blog/sae-j1939-address-claim-procedure-sae-j193981-network-management/
 			// "A node, that has not yet claimed an address, must use the NULL address (254) as the source address
 			//  when sending a Request for Address Claimed message."
 			// So we use 254 as source, until the day this library decides to start claiming its own address
-			Source:      addressNull,
+			Source:      nmea.AddressNull,
 			Destination: destination,
 		},
 		Data: []byte{ // order as little endian

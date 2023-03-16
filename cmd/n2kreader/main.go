@@ -12,11 +12,13 @@ import (
 	"fmt"
 	"github.com/aldas/go-nmea-client"
 	"github.com/aldas/go-nmea-client/actisense"
+	"github.com/aldas/go-nmea-client/addressmapper"
 	"github.com/aldas/go-nmea-client/canboat"
 	"github.com/aldas/go-nmea-client/socketcan"
 	"github.com/tarm/serial"
 	"io"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"sort"
@@ -33,7 +35,7 @@ func main() {
 	noShowPNG := flag.Bool("np", false, "do not print parsed PNGs")
 	noAddressMapper := flag.Bool("dam", false, "disable address mapper")
 	isFile := flag.Bool("is-file", false, "consider device as ordinary file")
-	inputFormat := flag.String("input-format", "ngt", "in which format packet are read (ngt, n2k-bin, n2k-ascii, canboat-raw)")
+	inputFormat := flag.String("input-format", "ngt", "in which format packet are read (ngt, n2k-bin, n2k-ascii, n2k-raw-ascii, canboat-raw)")
 	deviceAddr := flag.String("device", "/dev/ttyUSB0", "path to Actisense NGT-1 USB device")
 	pgnsPath := flag.String("pgns", "", "path to Canboat pgns.json file")
 	pgnFilter := flag.String("filter", "", "comma separated list of PGNs to filter")
@@ -97,7 +99,7 @@ func main() {
 	}
 
 	switch *inputFormat {
-	case "ngt", "n2k-bin", "n2k-ascii", "canboat-raw", "socketcan":
+	case "ngt", "n2k-bin", "n2k-ascii", "n2k-raw-ascii", "canboat-raw", "socketcan":
 	default:
 		log.Fatal("unknown input format type given\n")
 	}
@@ -105,6 +107,14 @@ func main() {
 	var reader io.ReadWriteCloser
 	if *isFile {
 		reader, err = os.OpenFile(*deviceAddr, os.O_RDONLY, 0)
+	} else if strings.HasPrefix(*deviceAddr, "tcp://") {
+		var dialer net.Dialer
+		addr := strings.TrimPrefix(*deviceAddr, "tcp://")
+		reader, err = dialer.DialContext(ctx, "tcp", addr)
+		go func() {
+			<-ctx.Done()
+			reader.Close()
+		}()
 	} else {
 		switch *inputFormat {
 		case "socketcan":
@@ -142,6 +152,8 @@ func main() {
 		device = actisense.NewBinaryDeviceWithConfig(reader, config)
 	case "n2k-ascii":
 		device = actisense.NewN2kASCIIDevice(reader, config)
+	case "n2k-raw-ascii":
+		device = actisense.NewRawASCIIDevice(reader, config)
 	}
 
 	if !*isFile {
@@ -154,17 +166,17 @@ func main() {
 	time.Sleep(1 * time.Second)
 
 	isAddressMapperEnabled := noAddressMapper == nil || !*noAddressMapper
-	var addressMapper *nmea.AddressMapper
+	var addressMapper *addressmapper.AddressMapper
 	if isAddressMapperEnabled {
-		addressMapper = nmea.NewAddressMapper(device)
+		addressMapper = addressmapper.NewAddressMapper(device)
 		fmt.Printf("# Starting address mapper process\n")
-		go func(ctx context.Context, am *nmea.AddressMapper) {
+		go func(ctx context.Context, am *addressmapper.AddressMapper) {
 			if err := am.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 				fmt.Printf("# AddressMapper ended with error: %v\n", err)
 			}
 		}(ctx, addressMapper)
 		if !*isFile {
-			go func(ctx context.Context, am *nmea.AddressMapper) {
+			go func(ctx context.Context, am *addressmapper.AddressMapper) {
 				// After 1 sec delay send ISO Address claim to all Nodes on bus to learn their NAME values
 				select {
 				case <-ctx.Done():
@@ -182,14 +194,14 @@ func main() {
 
 	if onlyRead != nil && !*onlyRead && !*isFile {
 		fmt.Printf("# Starting STDIN process\n")
-		go handleSTDIO(device, addressMapper)
+		go handleSTDIO(ctx, device, addressMapper)
 	}
 
 	throttled := map[uint64]time.Time{}
 	msgCount := uint64(0)
 	errorCountDecode := uint64(0)
 	errorCountRead := uint64(0)
-	nodesBySource := map[uint8]nmea.Node{}
+	nodesBySource := map[uint8]addressmapper.Node{}
 	for {
 		rawMessage, err := device.ReadRawMessage(ctx)
 		msgCount++
@@ -198,7 +210,7 @@ func main() {
 		}
 		if err != nil {
 			errorCountRead++
-			if errors.Is(err, context.Canceled) {
+			if errors.Is(err, context.Canceled) || errors.Is(err, net.ErrClosed) {
 				return
 			}
 			fmt.Printf("# Error ReadRawMessage: %v\n", err)
@@ -301,7 +313,7 @@ func main() {
 	fmt.Printf("# Finishing, number of processed messages: %v, errors: %v\n", msgCount, errorCountDecode)
 }
 
-func handleSTDIO(device nmea.RawMessageWriter, addressMapper *nmea.AddressMapper) {
+func handleSTDIO(ctx context.Context, device nmea.RawMessageWriter, addressMapper *addressmapper.AddressMapper) {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -331,7 +343,7 @@ func handleSTDIO(device nmea.RawMessageWriter, addressMapper *nmea.AddressMapper
 			continue
 		}
 
-		if err = device.Write(msg); err != nil {
+		if err = device.WriteRawMessage(ctx, msg); err != nil {
 			fmt.Printf("# Error at writing: %v", err)
 		}
 	}
@@ -436,7 +448,7 @@ func contains[T comparable](elems []T, v T) bool {
 	return false
 }
 
-type nodesBySrc nmea.Nodes
+type nodesBySrc addressmapper.Nodes
 
 func (v nodesBySrc) Len() int           { return len(v) }
 func (v nodesBySrc) Swap(i, j int)      { v[i], v[j] = v[j], v[i] }

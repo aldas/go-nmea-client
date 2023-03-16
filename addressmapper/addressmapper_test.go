@@ -1,6 +1,7 @@
-package nmea
+package addressmapper
 
 import (
+	"github.com/aldas/go-nmea-client"
 	test_test "github.com/aldas/go-nmea-client/test"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -10,15 +11,15 @@ import (
 func TestPGN126996ToProductInfo(t *testing.T) {
 	var testCases = []struct {
 		name        string
-		given       RawMessage
+		given       nmea.RawMessage
 		expect      ProductInfo
 		expectError string
 	}{
 		{
 			name: "ok, all fields set",
-			given: RawMessage{
+			given: nmea.RawMessage{
 				Time: time.Time{},
-				Header: CanBusHeader{
+				Header: nmea.CanBusHeader{
 					PGN:         126996,
 					Priority:    6,
 					Source:      51,
@@ -54,9 +55,9 @@ func TestPGN126996ToProductInfo(t *testing.T) {
 		},
 		{
 			name: "ok, some fields set",
-			given: RawMessage{
+			given: nmea.RawMessage{
 				Time: time.Time{},
-				Header: CanBusHeader{
+				Header: nmea.CanBusHeader{
 					PGN:         126996,
 					Priority:    6,
 					Source:      47,
@@ -109,15 +110,15 @@ func TestPGN60928ToDeviceName(t *testing.T) {
 
 	var testCases = []struct {
 		name        string
-		given       RawMessage
+		given       nmea.RawMessage
 		expect      NodeName
 		expectError string
 	}{
 		{
 			name: "ok",
-			given: RawMessage{
+			given: nmea.RawMessage{
 				Time: now,
-				Header: CanBusHeader{
+				Header: nmea.CanBusHeader{
 					PGN:         60928,
 					Priority:    6,
 					Source:      23,
@@ -192,33 +193,33 @@ func TestNodeName_Uint64(t *testing.T) {
 func TestCreateISORequest(t *testing.T) {
 	var testCases = []struct {
 		name            string
-		whenPGN         PGN
+		whenPGN         nmea.PGN
 		whenDestination uint8
-		expect          RawMessage
+		expect          nmea.RawMessage
 	}{
 		{
 			name:            "ok, ISO address claim broadcast",
-			whenPGN:         PGNISOAddressClaim,
-			whenDestination: addressGlobal,
-			expect: RawMessage{
-				Header: CanBusHeader{
+			whenPGN:         nmea.PGNISOAddressClaim,
+			whenDestination: nmea.AddressGlobal,
+			expect: nmea.RawMessage{
+				Header: nmea.CanBusHeader{
 					PGN:         59904,
 					Priority:    6,
-					Source:      addressNull,
-					Destination: addressGlobal,
+					Source:      nmea.AddressNull,
+					Destination: nmea.AddressGlobal,
 				},
 				Data: []byte{0x0, 0xEE, 0x0},
 			},
 		},
 		{
 			name:            "ok, ISO address claim addressed",
-			whenPGN:         PGNISOAddressClaim,
+			whenPGN:         nmea.PGNISOAddressClaim,
 			whenDestination: 32,
-			expect: RawMessage{
-				Header: CanBusHeader{
-					PGN:         uint32(PGNISORequest),
+			expect: nmea.RawMessage{
+				Header: nmea.CanBusHeader{
+					PGN:         uint32(nmea.PGNISORequest),
 					Priority:    6,
-					Source:      addressNull,
+					Source:      nmea.AddressNull,
 					Destination: 32,
 				},
 				Data: []byte{0x0, 0xEE, 0x0},
@@ -226,13 +227,13 @@ func TestCreateISORequest(t *testing.T) {
 		},
 		{
 			name:            "ok, product info to addressed",
-			whenPGN:         PGNProductInfo,
+			whenPGN:         nmea.PGNProductInfo,
 			whenDestination: 32,
-			expect: RawMessage{
-				Header: CanBusHeader{
-					PGN:         uint32(PGNISORequest),
+			expect: nmea.RawMessage{
+				Header: nmea.CanBusHeader{
+					PGN:         uint32(nmea.PGNISORequest),
 					Priority:    6,
-					Source:      addressNull,
+					Source:      nmea.AddressNull,
 					Destination: 32,
 				},
 				Data: []byte{0x14, 0xf0, 0x1},
@@ -240,27 +241,27 @@ func TestCreateISORequest(t *testing.T) {
 		},
 		{
 			name:            "ok, configuration info to broadcast",
-			whenPGN:         PGNConfigurationInformation,
-			whenDestination: addressGlobal,
-			expect: RawMessage{
-				Header: CanBusHeader{
-					PGN:         uint32(PGNISORequest),
+			whenPGN:         nmea.PGNConfigurationInformation,
+			whenDestination: nmea.AddressGlobal,
+			expect: nmea.RawMessage{
+				Header: nmea.CanBusHeader{
+					PGN:         uint32(nmea.PGNISORequest),
 					Priority:    6,
-					Source:      addressNull,
-					Destination: addressGlobal,
+					Source:      nmea.AddressNull,
+					Destination: nmea.AddressGlobal,
 				},
 				Data: []byte{0x16, 0xf0, 0x1},
 			},
 		},
 		{
 			name:            "ok, PGN list addressed",
-			whenPGN:         PGNPGNList,
+			whenPGN:         nmea.PGNPGNList,
 			whenDestination: 45,
-			expect: RawMessage{
-				Header: CanBusHeader{
-					PGN:         uint32(PGNISORequest),
+			expect: nmea.RawMessage{
+				Header: nmea.CanBusHeader{
+					PGN:         uint32(nmea.PGNISORequest),
 					Priority:    6,
-					Source:      addressNull,
+					Source:      nmea.AddressNull,
 					Destination: 45,
 				},
 				Data: []byte{0x0, 0xEE, 0x1},

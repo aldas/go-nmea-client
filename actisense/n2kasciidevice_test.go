@@ -102,6 +102,51 @@ func TestN2kAsciiDevice_ReadRawMessage(t *testing.T) {
 	}
 }
 
+func TestFormatN2KASCII(t *testing.T) {
+	now := time.Unix(1665488842, 123999999).In(time.UTC) // Tue Oct 11 2022 11:47:22.123999999 GMT+0000
+	var testCases = []struct {
+		name   string
+		when   nmea.RawMessage
+		expect []byte
+	}{
+		{
+			name: "ok",
+			when: nmea.RawMessage{
+				Time: now,
+				Header: nmea.CanBusHeader{
+					PGN:         0x1F513, // 1F513 -> 128275 Distance Log
+					Source:      35,      // 0x23
+					Destination: 255,     // 0xFF
+					Priority:    7,       // 0x07
+				},
+				Data: []byte{0x01, 0x2F, 0x30, 0x70, 0x00, 0x2F, 0x30, 0x70, 0x9F},
+			},
+			expect: []byte("A114722.123 23ff7 1f513 012f3070002f30709f\r"),
+		},
+		{
+			name: "ok, ISORequest broadcast address claim",
+			when: nmea.RawMessage{
+				Time: now,
+				Header: nmea.CanBusHeader{
+					PGN:         uint32(nmea.PGNISORequest),
+					Source:      nmea.AddressNull,   // 0xFE
+					Destination: nmea.AddressGlobal, // 0xFF
+					Priority:    6,                  // 0x06
+				},
+				Data: []byte{0x00, 0xee, 0x00},
+			},
+			expect: []byte("A114722.123 feff6 0ea00 00ee00\r"),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := formatN2KASCII(tc.when)
+
+			assert.Equal(t, tc.expect, result)
+		})
+	}
+}
+
 func TestParseN2KAscii(t *testing.T) {
 	now := test_test.UTCTime(1665488842) // Tue Oct 11 2022 11:47:22 GMT+0000
 

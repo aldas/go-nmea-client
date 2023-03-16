@@ -38,7 +38,7 @@ func (d *Device) ReadRawMessage(ctx context.Context) (nmea.RawMessage, error) {
 	return nmea.RawMessage{}, io.EOF
 }
 
-func (d *Device) Write(nmea.RawMessage) error {
+func (d *Device) WriteRawMessage(ctx context.Context, msg nmea.RawMessage) error {
 	return nil // do nothing
 }
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/aldas/go-nmea-client"
 	"io"
+	"strconv"
 	"time"
 )
 
@@ -43,8 +44,10 @@ func (d *N2kASCIIDevice) Close() error {
 	return errors.New("device does not implement Closer interface")
 }
 
-func (d *N2kASCIIDevice) Write(nmea.RawMessage) error {
-	return errors.New("not implemented")
+func (d *N2kASCIIDevice) WriteRawMessage(ctx context.Context, msg nmea.RawMessage) error {
+	b := formatN2KASCII(msg)
+	_, err := d.device.Write(b)
+	return err
 }
 
 func (d *N2kASCIIDevice) Initialize() error {
@@ -101,6 +104,26 @@ func (d *N2kASCIIDevice) ReadRawMessage(ctx context.Context) (nmea.RawMessage, e
 
 		return rawMessage, err
 	}
+}
+
+func formatN2KASCII(msg nmea.RawMessage) []byte {
+	// Example:
+	// cansend can0 18EAFFFE#00EE00
+	// echo -e "A173321.107 FEFF6 0EA00 00EE00\r" > /dev/tcp/192.168.1.194/60003
+
+	buf := new(bytes.Buffer)
+	buf.WriteString(msg.Time.Format("A150405.000 "))
+
+	buf.WriteString(strconv.FormatUint(uint64(msg.Header.Source), 16))
+	buf.WriteString(strconv.FormatUint(uint64(msg.Header.Destination), 16))
+	buf.WriteString(strconv.FormatUint(uint64(msg.Header.Priority), 10))
+	buf.WriteString(fmt.Sprintf(" %05x ", msg.Header.PGN))
+	enc := hex.NewEncoder(buf)
+	enc.Write(msg.Data)
+
+	buf.WriteByte('\r')
+
+	return buf.Bytes()
 }
 
 func parseN2KAscii(raw []byte, now time.Time) (nmea.RawMessage, bool, error) {

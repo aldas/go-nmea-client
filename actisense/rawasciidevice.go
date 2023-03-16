@@ -8,8 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aldas/go-nmea-client"
+	"github.com/aldas/go-nmea-client/internal/utils"
 	"io"
 	"math"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -23,17 +26,18 @@ type RawASCIIDevice struct {
 	readBuffer []byte
 	readIndex  int
 
-	DebugLogRawFrameBytes bool
+	config Config
 }
 
 // NewRawASCIIDevice creates new instance of Actisense W2K-1 device capable of decoding RAW Ascii format. RAW ASCII
 // format is ordinary Canbus frame with 8 bytes of data so fast-packet and multi-packet (ISO TP) assembly must be done
 // separately.
-func NewRawASCIIDevice(reader io.ReadWriter) *RawASCIIDevice {
+func NewRawASCIIDevice(reader io.ReadWriter, config Config) *RawASCIIDevice {
 	return &RawASCIIDevice{
 		device:     reader,
 		timeNow:    time.Now,
 		readBuffer: make([]byte, 100),
+		config:     config,
 	}
 }
 
@@ -42,6 +46,79 @@ func (d *RawASCIIDevice) Close() error {
 		return c.Close()
 	}
 	return errors.New("device does not implement Closer interface")
+}
+
+func (d *RawASCIIDevice) Initialize() error {
+	return nil // no-op
+}
+
+const hextable = "0123456789ABCDEF"
+
+func toRawASCIIBytes(frame nmea.RawFrame) []byte {
+	canID := frame.Header.Uint32()
+	f := []byte{
+		// example: `00:00:00.000 S 1F223355 01 02 03 04 05 06 07 08\n`
+		0x30, 0x30, 0x3a, 0x30, 0x30, 0x3a, 0x30, 0x30, 0x2e, 0x30, 0x30, 0x30, 0x20, 0x53, 0x20, // `00:00:00.000 S ` (0-14)
+		0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, // canID part `1F223355` (15-22)
+		0x20, 0x0, 0x0, 0x20, 0x0, 0x0, 0x20, 0x0, 0x0, // ` 01 02 03` (23-31)
+		0x20, 0x0, 0x0, 0x20, 0x0, 0x0, 0x20, 0x0, 0x0, // ` 04 05 06` (32-40)
+		0x20, 0x0, 0x0, 0x20, 0x0, 0x0, 0x0d, 0x0a, // ` 07 08\r\n` (41-48)
+	}
+	hexCanID := strings.ToUpper(strconv.FormatUint(uint64(canID), 16))
+	canIDStart := 23 - len(hexCanID)
+	for i, s := range hexCanID {
+		f[canIDStart+i] = byte(s)
+	}
+
+	idx := uint8(24)
+	for i := uint8(0); i < frame.Length; i++ {
+		v := frame.Data[i]
+		f[idx] = hextable[v>>4]
+		f[idx+1] = hextable[v&0x0f]
+		idx += 3 // additional byte is for space (0x20)
+	}
+	if frame.Length < 8 {
+		// `\r\n` at the end
+		f[idx-1] = 0x0d
+		f[idx] = 0x0a
+	}
+	return f[0 : idx+1]
+}
+
+func (d *RawASCIIDevice) WriteRawFrame(ctx context.Context, frame nmea.RawFrame) error {
+	rawB := toRawASCIIBytes(frame)
+	if d.config.DebugLogRawMessageBytes {
+		fmt.Printf("# DEBUG Writing Actisense N2K RAW ASCII bytes: `%v`\n", utils.FormatSpaces(rawB))
+	}
+	_, err := d.device.Write(rawB)
+	return err
+}
+
+func (d *RawASCIIDevice) WriteRawMessage(ctx context.Context, msg nmea.RawMessage) error {
+	dLen := uint8(len(msg.Data))
+	if len(msg.Data) > 8 {
+		panic("message longer than 8 bytes")
+	}
+	frame := nmea.RawFrame{
+		Time:   msg.Time,
+		Header: msg.Header,
+		Length: dLen,
+		Data:   [8]byte{},
+	}
+	copy(frame.Data[0:], msg.Data)
+	return d.WriteRawFrame(ctx, frame)
+}
+
+func (d *RawASCIIDevice) ReadRawMessage(ctx context.Context) (nmea.RawMessage, error) {
+	frame, err := d.ReadRawFrame(ctx)
+	if err != nil {
+		return nmea.RawMessage{}, err
+	}
+	return nmea.RawMessage{
+		Time:   frame.Time,
+		Header: frame.Header,
+		Data:   frame.Data[:],
+	}, err
 }
 
 func (d *RawASCIIDevice) ReadRawFrame(ctx context.Context) (nmea.RawFrame, error) {
@@ -72,21 +149,22 @@ func (d *RawASCIIDevice) ReadRawFrame(ctx context.Context) (nmea.RawFrame, error
 
 			continue
 		}
+		endIndex++ // note: include \n
 		// if end of line is found we copy data that we just read to previously read data to assemble full line
-		copy(d.readBuffer[d.readIndex:], buf[0:endIndex]) // note: \n is not included
+		copy(d.readBuffer[d.readIndex:], buf[0:endIndex])
 		d.readIndex += endIndex
 
 		frame := d.readBuffer[0:d.readIndex]
-		if d.DebugLogRawFrameBytes {
-			fmt.Printf("# DEBUG Actisense RAW ASCII frame: %x\n", frame)
+		if d.config.DebugLogRawMessageBytes {
+			fmt.Printf("# DEBUG Read Actisense RAW ASCII frame: %v\n", utils.FormatSpaces(frame))
 		}
 		now := d.timeNow()
 		rawFrame, skip, err := parseRawASCII(frame, now)
 
 		// reset read buffer to whatever we were able to read past current frame end. probably nothing but could be
 		// start of next frame etc
-		copy(d.readBuffer, buf[endIndex+1:n])
-		d.readIndex = n - (endIndex + 1)
+		copy(d.readBuffer, buf[endIndex:n])
+		d.readIndex = n - endIndex
 
 		if skip {
 			continue
@@ -135,6 +213,9 @@ func parseRawASCII(raw []byte, now time.Time) (nmea.RawFrame, bool, error) {
 		b := raw[i]
 		if b == rawASCIIDelimiter {
 			continue
+		}
+		if b == '\r' || b == '\n' {
+			break
 		}
 		hexBytes[dstIndex] = b
 		dstIndex++

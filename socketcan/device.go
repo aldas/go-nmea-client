@@ -46,7 +46,7 @@ func (d *Device) Initialize() error {
 	return nil
 }
 
-func (d *Device) Write(nmea.RawMessage) error {
+func (d *Device) WriteRawMessage(ctx context.Context, msg nmea.RawMessage) error {
 	return errors.New("not implemented") // FIXME: implement
 }
 

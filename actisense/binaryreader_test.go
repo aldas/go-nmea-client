@@ -445,3 +445,57 @@ func TestNGT1Device_Read(t *testing.T) {
 		}
 	}
 }
+
+func TestFromRawActisenseMessage(t *testing.T) {
+	now := time.Unix(1623928400, 0)
+	var testCases = []struct {
+		name        string
+		when        string
+		expect      nmea.RawMessage
+		expectError string
+	}{
+		{
+			name: "ok, ISORequest broadcast, address claim",
+			when: "95093eb7feffea1800ee0080",
+			expect: nmea.RawMessage{
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    0x6,
+					PGN:         uint32(nmea.PGNISORequest),
+					Destination: nmea.AddressGlobal,
+					Source:      nmea.AddressNull,
+				},
+				Data: []uint8{0x0, 0xee, 0x0},
+			},
+		},
+		{
+			name: "ok, 130310",
+			when: "950ea57f1606fd1501c170ffffffffffde",
+			expect: nmea.RawMessage{
+				Time: now,
+				Header: nmea.CanBusHeader{
+					Priority:    0x5,
+					PGN:         130310,
+					Destination: nmea.AddressGlobal,
+					Source:      22,
+				},
+				Data: []uint8{0x1, 0xc1, 0x70, 0xff, 0xff, 0xff, 0xff, 0xff},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw, err := hex.DecodeString(tc.when)
+			assert.NoError(t, err)
+
+			result, err := fromRawActisenseMessage(raw, now)
+
+			assert.Equal(t, tc.expect, result)
+			if tc.expectError != "" {
+				assert.EqualError(t, err, tc.expectError)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

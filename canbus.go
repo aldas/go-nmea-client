@@ -34,27 +34,13 @@ func (h CanBusHeader) ProprietaryType() string { // FIXME: is it necessary?
 func (h CanBusHeader) Uint32() uint32 {
 	canID := uint32(h.Source) // bit 0-7
 
-	ps := h.Destination // bits 8-15
-	if h.Destination == addressGlobal {
-		ps = uint8(h.PGN)
+	pf := uint8(h.PGN)
+	if pf < 240 {
+		canID |= uint32(h.Destination) << 8 // bits 8-15
 	}
-	canID = canID | uint32(ps)<<8  // bits 8-15
-	pduFormat := uint8(h.PGN >> 8) // bits 16-23
-	canID = canID | uint32(pduFormat)<<16
-
-	rAndDP := uint8(h.PGN>>16) & 3 // bits 24,25
-	canID = canID | uint32(rAndDP)<<24
-
-	//   can0  15FD0617   [8]  01 9D 76 FF FF FF FF FF
-	//       5,130310,23,255,8,01,9d,76,ff,ff,ff,ff,ff
-	// 1706FD9508000000019D76FFFFFFFFFF   {PGN:130310 Priority:5 Source:23 Destination:255} Data:[01 9d 76 ff ff ff ff ff]}
-
-	// 15FD0617 =    10101111111010000011000010111
-	// 95FD0617 = 10010101111111010000011000010111
-	// 1706FD95 =    10111000001101111110110010101
-
+	canID |= h.PGN << 8                        // bits 16-24
 	canID = canID | uint32(h.Priority&0x7)<<26 // bit 26,27,28
-	return canID                               // this need to be turned to bid endian when written to the wire
+	return canID                               // this need to be turned to big endian when written to the wire
 }
 
 // ParseCANID parses can bus header fields from CANID (29 bits of 32 bit).
@@ -71,7 +57,7 @@ func ParseCANID(canID uint32) CanBusHeader {
 		result.Destination = ps
 		result.PGN = pgn
 	} else {
-		result.Destination = addressGlobal // 0xff is broadcast to all
+		result.Destination = AddressGlobal // 0xff is broadcast to all
 		result.PGN = pgn + uint32(ps)
 	}
 	return result

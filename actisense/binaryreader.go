@@ -2,6 +2,7 @@ package actisense
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/aldas/go-nmea-client"
@@ -24,7 +25,11 @@ const (
 	// cmdN2KMessageRequestReceived identifies that packet is sent/outgoing NMEA200 data message as NGT binary format.
 	cmdNGTMessageSend = 0x94
 
-	// cmdN2KMessageReceived identifies that packet is received/incoming NMEA200 data message as N2K binary format.
+	// cmdRAWActisenseMessageReceived identifies that packet is received/incoming NMEA200 data message as RAW Actisense format.
+	cmdRAWActisenseMessageReceived = 0x95
+	// cmdRAWActisenseMessageSend identifies that packet is sent/outgoing NMEA200 data message as RAW Actisense format.
+	cmdRAWActisenseMessageSend = 0x96
+
 	cmdN2KMessageReceived = 0xD0
 	// cmdN2KMessageReceived identifies that packet is sent/outgoing NMEA200 data message as N2K binary format.
 	cmdN2KMessageSend = 0xD1
@@ -82,10 +87,8 @@ func NewBinaryDevice(reader io.ReadWriter) *BinaryFormatDevice {
 // NewBinaryDeviceWithConfig creates new instance of Actisense device using binary formats (NGT1 and N2K binary) with given config
 func NewBinaryDeviceWithConfig(reader io.ReadWriter, config Config) *BinaryFormatDevice {
 	device := &BinaryFormatDevice{
-		device: reader,
-		sleepFunc: func(timeout time.Duration) {
-			time.Sleep(timeout)
-		},
+		device:             reader,
+		sleepFunc:          time.Sleep,
 		timeNow:            time.Now,
 		receiveDataTimeout: 5 * time.Second,
 		config:             config,
@@ -164,17 +167,20 @@ func (d *BinaryFormatDevice) ReadRawMessage(ctx context.Context) (nmea.RawMessag
 				break
 			}
 			if currentByte == ETX { // end of message sequence
+				msg := message[0:messageByteIndex]
 				if d.config.DebugLogRawMessageBytes {
-					fmt.Printf("# DEBUG read raw actisense binary message: %x\n", message[0:messageByteIndex])
+					fmt.Printf("# DEBUG read raw actisense binary message: %x\n", msg)
 				}
 				switch message[0] {
 				case cmdNGTMessageReceived, cmdNGTMessageSend:
-					return fromActisenseNGTBinaryMessage(message[0:messageByteIndex], now)
-				case cmdN2KMessageReceived:
-					return fromActisenseN2KBinaryMessage(message[0:messageByteIndex], now)
+					return fromActisenseNGTBinaryMessage(msg, now)
+				case cmdN2KMessageReceived, cmdN2KMessageSend:
+					return fromActisenseN2KBinaryMessage(msg, now)
+				case cmdRAWActisenseMessageReceived, cmdRAWActisenseMessageSend:
+					return fromRawActisenseMessage(msg, now)
 				case cmdDeviceMessageReceived:
 					if d.config.OutputActisenseMessages {
-						return fromNGTMessage(message[0:messageByteIndex], now)
+						return fromNGTMessage(msg, now)
 					}
 				}
 			}
@@ -287,6 +293,47 @@ func fromActisenseN2KBinaryMessage(raw []byte, now time.Time) (nmea.RawMessage, 
 	}, nil
 }
 
+// Example Send: `cansend can0 18EAFFFE#00EE00`
+// Output from W2K RAW Actisense server: `95093eb7feffea1800ee0080`
+//
+// Message format:
+// byte 0: command identifier
+// byte 1: length of time counter + canid + data
+// byte 2,3: time/counter
+// byte 4,5,6,7: CanID (little endian)
+// byte 8 ... (N-1): data
+// byte N (last): CRC
+func fromRawActisenseMessage(raw []byte, now time.Time) (nmea.RawMessage, error) {
+	if len(raw) < 8 {
+		return nmea.RawMessage{}, errors.New("raw actisense message length too short to be valid")
+	}
+
+	dLen := int(raw[1])
+	if dLen+3 != len(raw) {
+		return nmea.RawMessage{}, fmt.Errorf("data length byte value is different from actual length, %v!=%v", dLen, len(raw)-3)
+	}
+
+	if err := crcCheck(raw); err != nil {
+		return nmea.RawMessage{}, err
+	}
+
+	CanID := nmea.ParseCANID(binary.LittleEndian.Uint32(raw[4:8]))
+	dataBytes := make([]byte, dLen-6)
+	copy(dataBytes, raw[8:len(raw)-1])
+
+	return nmea.RawMessage{
+		Time: now,
+		Header: nmea.CanBusHeader{
+			PGN:         CanID.PGN,
+			Source:      CanID.Source,
+			Destination: CanID.Destination,
+			Priority:    CanID.Priority,
+		},
+		// NB: RAW actisense seems to have some incrementing value (2 bytes) for each message
+		Data: dataBytes,
+	}, nil
+}
+
 // crcCheck calculates and checks message checksum.
 func crcCheck(data []byte) error {
 	if crc(data) != 0 {
@@ -330,7 +377,7 @@ func (d *BinaryFormatDevice) Initialize() error {
 	return d.writeBstMessage(clearPGNFilter)
 }
 
-func (d *BinaryFormatDevice) Write(msg nmea.RawMessage) error {
+func (d *BinaryFormatDevice) WriteRawMessage(ctx context.Context, msg nmea.RawMessage) error {
 	if d.config.DebugLogRawMessageBytes {
 		fmt.Printf("# DEBUG sending raw message: %+v\n", msg)
 	}
