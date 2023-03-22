@@ -21,6 +21,23 @@ const FastRawPacketMaxSize = 223
 
 const ISOTPDataMaxSize = 1785
 
+// NMEA2000 PGN groups according to CanBoat:
+// #	Range				R.Size	Assigned by					Fast/Single			Range as decimals	Destination
+// 1	0x00e800 - 0x00ee00	256		ISO-BUS (ISO 11783)			single frame		59392 - 60928		addressed
+// 2	0x00ef00 - 0x00ef00	1		Manufacturer proprietary	single frame		61184				addressed
+// 3	0x00f000 - 0x00feff	3840	NMEA2000 Standardized		single frame		61440 - 65279		broadcast
+// 4	0x00ff00 - 0x00ffff	256		Manufacturer proprietary	single frame		65280 - 65535		broadcast
+// 5	0x01ed00 - 0x01ee00	256		NMEA2000 Standardized		fast packet			126208 - 126464		addressed
+// 6	0x01ef00 - 0x01ef00	1		Manufacturer proprietary	fast packet			126720				addressed
+// 7	0x01f000 - 0x01feff	3840	NMEA2000 Standardized		mixed fast/single	126976 - 130815		broadcast
+// 8	0x01ff00 - 0x01ffff	256		Manufacturer proprietary	fast packet			130816 - 131071		broadcast
+//
+// SAE J1939 PGN groups are quite similar. Read more here https://copperhilltech.com/blog/design-of-proprietary-parameter-group-numbers-pgns/
+func couldBeFastPacket(pgn uint32) bool {
+	// fast packets could be groups 5,6,7,8 that are 0x01ed00+ 126208+
+	return pgn >= 0x01ed00
+}
+
 type PGN uint32
 
 const (
@@ -70,16 +87,6 @@ type Message struct {
 
 	Header CanBusHeader `json:"header"`
 	Fields FieldValues  `json:"fields"`
-}
-
-// +127 = Data not available or Do Not Change; 0x7F
-//+126 = Out of range; 0x7E
-//+125 = Reserved, 0x7D
-
-// FrameAssembler propose is to assemble multi-frame PGN into single raw NMEA message. Used for fast-packet and ISO-TP
-// assembly.
-type FrameAssembler interface {
-	Assemble(rawFrame RawFrame) (RawMessage, bool, error)
 }
 
 type MessageDecoder interface {

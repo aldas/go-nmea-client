@@ -5,13 +5,17 @@
 
 -----
 
-Go library to read NMEA 2000 messages from SocketCAN interfaces or usb devices (Actisense NGT1/W2K-1 etc).
+Go library to read NMEA 2000 messages from SocketCAN interfaces or USB devices (Actisense NGT1/W2K-1 etc).
 
 In addition, this repository contains command line application [n2k-reader](./cmd/n2kreader/main.go) to provide
 following features:
 
+* Can read input from:
+  * files
+  * TCP connections
+  * serial devices
 * Can read different input formats:
-  * SocketCAN format (TODO)
+  * SocketCAN format
   * CanBoat raw format
   * Actisense format:
       * NGT1 Binary,
@@ -23,6 +27,7 @@ following features:
     * HEX,
     * BASE64,
     * CanBoat format
+* Can assemble Fast-Packet frames into complete Messages
 * Can decode CAN messages to fields with CanBoat PGN database
 * Can output decoded messages fields as: 
   * JSON (stdout)
@@ -163,25 +168,6 @@ func main() {
 }
 ```
 
-# Research/check following libraries:
-
-* CAN libraries
-
-1. https://github.com/algleason/canlib (7) (socketcan) BSD2
-2. https://github.com/angelodlfrtr/go-can (4) (serial, socketcan) MIT?  
-   uses https://github.com/brutella/can
-3. https://github.com/brutella/can (133) (socketcan) MIT
-4. https://github.com/go-daq/canbus (16) BSD3  (socketcan)  no deps
-5. https://github.com/einride/can-go (socketcan) MIT
-
-* NMEA libraries
-
-1. https://github.com/canboat/canboat (307) Apache2 (nmea2000) lang: C
-2. https://github.com/timmathews/argo GPL3 (nmea2000)  lang: GO
-3. https://github.com/adrianmo/go-nmea (147) MIT (nmea0183 only)
-4. https://github.com/pilebones/go-nmea (2) GPL3 (nmea0183 only)
-5. https://github.com/BertoldVdb/go-ais (18) MIT (nmea0183 only)
-
-Useful links:
+# Research/check following:
 
 1. https://gist.github.com/jackm/f33d6e3a023bfcc680ec3bfa7076e696

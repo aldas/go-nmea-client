@@ -7,30 +7,6 @@ type CanBusHeader struct {
 	Destination uint8  `json:"destination"`
 }
 
-func (h CanBusHeader) ProprietaryType() string { // FIXME: is it necessary?
-	// https://copperhilltech.com/blog/design-of-proprietary-parameter-group-numbers-pgns/
-	// J1939 PGN groups:
-	// 0x000000 - 0x00EE00	PDU1 addressed (SAE assigned) (0 - 60928)
-	// 0x00EF00				PDU1 addressed (Manufacturer assigned) (61184)
-	// 0x00F000 - 0x00FEFF	PDU2 broadcast (SAE) (61440 - 65279)
-	// 0x00FF00 - 0x00FFFF	PDU2 broadcast (Manufacturer assigned) (65280 - 65535)
-	// 0x010000 - 0x01EE00	PDU1 addressed (SAE assigned) (65536 - 126464)
-	// 0x01EF00				PDU1 addressed (Manufacturer assigned) (126720)
-	// 0x01F000 - 0x01FEFF	PDU2 broadcast (SAE) (126976 - 130815)
-	// 0x01FF00 - 0x01FFFF	PDU2 broadcast (Manufacturer assigned) (130816 - 131071)
-
-	if h.PGN >= 0xEF00 && h.PGN <= 0xEFFF { // 61184 - 61439
-		return "PDU1 (addressed) single-frame"
-	} else if h.PGN >= 0xFF00 && h.PGN <= 0xFFFF { // 65280 - 65535
-		return "PDU2 (broadcast) single-frame"
-	} else if h.PGN >= 0x1EF00 && h.PGN <= 0x1EFFF { // 126720 - 126975
-		return "PDU1 (addressed) fast-packet"
-	} else if h.PGN >= 0x1FF00 && h.PGN <= 0x1FFFF { // 130816 - 131071
-		return "PDU2 (broadcast) fast-packet"
-	}
-	return ""
-}
-
 func (h CanBusHeader) Uint32() uint32 {
 	canID := uint32(h.Source) // bit 0-7
 

@@ -50,11 +50,6 @@ type BinaryFormatDevice struct {
 
 	sleepFunc func(timeout time.Duration)
 	timeNow   func() time.Time
-	// receiveDataTimeout is to limit amount of time reads can result no data. to timeout the connection when there is no
-	// interaction in bus. This is different from for example serial device readTimeout which limits how much time Read
-	// call blocks but we want to Reads block small amount of time to be able to check if context was cancelled during read
-	// but at the same time we want to be able to detect when there are no coming from bus for excessive amount of time.
-	receiveDataTimeout time.Duration
 
 	config Config
 }
@@ -77,6 +72,10 @@ type Config struct {
 
 	// IsN2KWriter instructs device to write/send messages to NMEA200 bus as N2K binary format (used by Actisense W2K-1)
 	IsN2KWriter bool
+
+	// FastPacketAssembler assembles fast-packet PGN frames to complete messages.
+	// Optional: if set is used by devices/format that do not do packet assembly inside hardware (i.e. W2K-1 Raw ASCII format)
+	FastPacketAssembler nmea.Assembler
 }
 
 // NewBinaryDevice creates new instance of Actisense device using binary formats (NGT1 and N2K binary)
@@ -86,18 +85,15 @@ func NewBinaryDevice(reader io.ReadWriter) *BinaryFormatDevice {
 
 // NewBinaryDeviceWithConfig creates new instance of Actisense device using binary formats (NGT1 and N2K binary) with given config
 func NewBinaryDeviceWithConfig(reader io.ReadWriter, config Config) *BinaryFormatDevice {
-	device := &BinaryFormatDevice{
-		device:             reader,
-		sleepFunc:          time.Sleep,
-		timeNow:            time.Now,
-		receiveDataTimeout: 5 * time.Second,
-		config:             config,
-	}
 	if config.ReceiveDataTimeout > 0 {
-		device.receiveDataTimeout = config.ReceiveDataTimeout
+		config.ReceiveDataTimeout = 5 * time.Second
 	}
-
-	return device
+	return &BinaryFormatDevice{
+		device:    reader,
+		sleepFunc: time.Sleep,
+		timeNow:   time.Now,
+		config:    config,
+	}
 }
 
 type state uint8
@@ -138,7 +134,7 @@ func (d *BinaryFormatDevice) ReadRawMessage(ctx context.Context) (nmea.RawMessag
 
 		now := d.timeNow()
 		if n == 0 {
-			if errors.Is(err, io.EOF) && now.Sub(lastReadWithDataTime) > d.receiveDataTimeout {
+			if errors.Is(err, io.EOF) && now.Sub(lastReadWithDataTime) > d.config.ReceiveDataTimeout {
 				return nmea.RawMessage{}, err
 			}
 			continue

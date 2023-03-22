@@ -109,7 +109,24 @@ func (d *RawASCIIDevice) WriteRawMessage(ctx context.Context, msg nmea.RawMessag
 	return d.WriteRawFrame(ctx, frame)
 }
 
+func (d *RawASCIIDevice) assembleRawMessage(ctx context.Context) (nmea.RawMessage, error) {
+	msg := nmea.RawMessage{}
+	for {
+		frame, err := d.ReadRawFrame(ctx)
+		if err != nil {
+			return nmea.RawMessage{}, err
+		}
+		if d.config.FastPacketAssembler.Assemble(frame, &msg) {
+			return msg, nil
+		}
+	}
+}
+
 func (d *RawASCIIDevice) ReadRawMessage(ctx context.Context) (nmea.RawMessage, error) {
+	if d.config.FastPacketAssembler != nil {
+		return d.assembleRawMessage(ctx)
+	}
+
 	frame, err := d.ReadRawFrame(ctx)
 	if err != nil {
 		return nmea.RawMessage{}, err

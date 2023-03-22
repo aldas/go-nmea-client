@@ -36,7 +36,7 @@ type Node struct {
 
 type Nodes []Node
 
-type ProductInfo struct {
+type ProductInfo struct { // 22 bytes
 	NMEA2000Version uint16 // (16 bits)
 	ProductCode     uint16 // (16 bits)
 

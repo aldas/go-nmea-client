@@ -475,6 +475,19 @@ func (bv *EnumBitValue) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (pgns *PGNs) FastPacketPGNs() []uint32 {
+	if pgns == nil {
+		return []uint32{}
+	}
+	result := make([]uint32, 0)
+	for _, pgn := range *pgns {
+		if pgn.Type == PacketTypeFast {
+			result = append(result, pgn.PGN)
+		}
+	}
+	return result
+}
+
 // FilterByPGN returns list of matching PGN objects that match by PGN value
 func (pgns *PGNs) FilterByPGN(pgn uint32) PGNs {
 	result := PGNs{}

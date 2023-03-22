@@ -26,7 +26,7 @@ func xTestName(t *testing.T) {
 }
 
 func xTestName2(t *testing.T) {
-	dev := NewDevice("can0")
+	dev := NewDevice(DeviceConfig{InterfaceName: "can0"})
 
 	if err := dev.Initialize(); err != nil {
 		assert.NoError(t, err)

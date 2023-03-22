@@ -53,6 +53,7 @@ func main() {
 	}
 
 	var decoder *canboat.Decoder
+	var fastPacketPGNs []uint32
 	if !*onlyRaw {
 		if pgnsPath == nil || *pgnsPath == "" {
 			log.Fatal("# missing pgns.json path\n")
@@ -65,6 +66,7 @@ func main() {
 		fmt.Printf("# Parsed %v known PGN definitions\n", len(schema.PGNs))
 
 		decoder = canboat.NewDecoder(schema)
+		fastPacketPGNs = schema.PGNs.FastPacketPGNs()
 	}
 
 	var err error
@@ -132,7 +134,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer reader.Close()
+	if reader != nil {
+		defer reader.Close()
+	}
 
 	config := actisense.Config{
 		ReceiveDataTimeout:      5 * time.Second,
@@ -145,7 +149,10 @@ func main() {
 	var device nmea.RawMessageReaderWriter
 	switch *inputFormat {
 	case "socketcan":
-		device = socketcan.NewDevice(*deviceAddr)
+		device = socketcan.NewDevice(socketcan.DeviceConfig{
+			InterfaceName:       *deviceAddr,
+			FastPacketAssembler: nmea.NewFastPacketAssembler(fastPacketPGNs),
+		})
 	case "canboat-raw":
 		device = canboat.NewCanBoatReader(reader)
 	case "ngt", "n2k-bin":

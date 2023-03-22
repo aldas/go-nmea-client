@@ -51,6 +51,16 @@ func TestParseCANID(t *testing.T) {
 				Source:      184,    // B8
 			},
 		},
+		{
+			name:  "ok, 130323",
+			canID: 0x19FD1323,
+			expect: CanBusHeader{
+				PGN:         130323,
+				Priority:    6,
+				Source:      35,
+				Destination: 255,
+			},
+		},
 	}
 
 	for _, tc := range testCases {
