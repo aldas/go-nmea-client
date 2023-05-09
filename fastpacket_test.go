@@ -229,31 +229,31 @@ func TestFastPacketAssembler_Assemble(t *testing.T) {
 					Time:   now.Add(-4 * 50 * time.Millisecond),
 					Header: CanBusHeader{PGN: 130323, Priority: 6, Source: 35, Destination: 255},
 					Length: 8,
-					Data:   [8]byte{0x60, 0x1E, 0xF0, 0x30, 0x4B, 0x08, 0xAC, 0x02},
+					Data:   [8]byte{0x60, 0x1E, 0xF0, 0x30, 0x4B, 0x08, 0xAC, 0x02}, // +6
 				},
 				{
 					Time:   now.Add(-3 * 50 * time.Millisecond),
 					Header: CanBusHeader{PGN: 130323, Priority: 6, Source: 35, Destination: 255},
 					Length: 8,
-					Data:   [8]byte{0x61, 0x12, 0x8B, 0x01, 0xB3, 0x22, 0x34, 0x38},
+					Data:   [8]byte{0x61, 0x12, 0x8B, 0x01, 0xB3, 0x22, 0x34, 0x38}, // +7 = 13
 				},
 				{
 					Time:   now.Add(-2 * 50 * time.Millisecond),
 					Header: CanBusHeader{PGN: 130323, Priority: 6, Source: 35, Destination: 255},
 					Length: 8,
-					Data:   [8]byte{0x62, 0x59, 0x0D, 0xA4, 0x00, 0xF5, 0xC7, 0xFA},
+					Data:   [8]byte{0x62, 0x59, 0x0D, 0xA4, 0x00, 0xF5, 0xC7, 0xFA}, // +7 = 20
 				},
 				{
 					Time:   now.Add(-1 * 50 * time.Millisecond),
 					Header: CanBusHeader{PGN: 130323, Priority: 6, Source: 35, Destination: 255},
 					Length: 8,
-					Data:   [8]byte{0x63, 0xFF, 0xFF, 0xF0, 0x03, 0x95, 0x6F, 0x02},
+					Data:   [8]byte{0x63, 0xFF, 0xFF, 0xF0, 0x03, 0x95, 0x6F, 0x02}, // +7 = 27
 				},
 				{
 					Time:   now,
 					Header: CanBusHeader{PGN: 130323, Priority: 6, Source: 35, Destination: 255},
 					Length: 8,
-					Data:   [8]byte{0x64, 0x01, 0x02, 0x01, 0xFF, 0xFF, 0xFF, 0xFF},
+					Data:   [8]byte{0x64, 0x01, 0x02, 0x01, 0xFF, 0xFF, 0xFF, 0xFF}, // +3 = 30
 				},
 			},
 			expectComplete: true,
@@ -305,4 +305,65 @@ func TestFastPacketAssembler_Assemble(t *testing.T) {
 			assert.Equal(t, tc.expectMessage, msg)
 		})
 	}
+}
+
+func TestAssembleMaxSizeFastPacket(t *testing.T) {
+	now := test_test.UTCTime(1665488842)
+	fpa := NewFastPacketAssembler([]uint32{130323})
+	fpa.now = func() time.Time {
+		return now
+	}
+	var msg RawMessage
+
+	first := RawFrame{
+		Time:   now.Add(-4 * 50 * time.Millisecond),
+		Header: CanBusHeader{PGN: 130323, Priority: 6, Source: 35, Destination: 255},
+		Length: 8,
+		Data:   [8]byte{0x60, FastRawPacketMaxSize, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5},
+	}
+	assert.False(t, fpa.Assemble(first, &msg))
+
+	frameNR := uint8(1)
+	for i := 7; i < FastRawPacketMaxSize; {
+		size := 7
+		isLast := false
+		if i+size > FastRawPacketMaxSize {
+			size -= i + size - FastRawPacketMaxSize
+			isLast = true
+		}
+
+		startIdx := 6 + (frameNR-1)*7
+		f := RawFrame{
+			Time:   now.Add(time.Duration(frameNR) * 40 * time.Millisecond),
+			Header: CanBusHeader{PGN: 130323, Priority: 6, Source: 35, Destination: 255},
+			Length: uint8(size + 1),
+			Data: [8]byte{
+				uint8(0b01100000) + frameNR,
+				0x0 + startIdx,
+				0x1 + startIdx,
+				0x2 + startIdx,
+				0x3 + startIdx,
+				0x4 + startIdx,
+				0x5 + startIdx,
+				0x6 + startIdx,
+			},
+		}
+
+		result := fpa.Assemble(f, &msg)
+		assert.Equal(t, isLast, result)
+
+		i += size
+		frameNR++
+	}
+
+	expected := RawMessage{
+		Time:   now.Add(time.Duration(31) * 40 * time.Millisecond),
+		Header: CanBusHeader{PGN: 130323, Priority: 6, Source: 35, Destination: 255},
+		Data:   make(RawData, FastRawPacketMaxSize),
+	}
+	for i := 0; i < FastRawPacketMaxSize; i++ {
+		expected.Data[i] = uint8(i)
+	}
+	assert.Equal(t, expected, msg)
+
 }

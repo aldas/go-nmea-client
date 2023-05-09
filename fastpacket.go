@@ -59,8 +59,9 @@ func (m *fastPacketSequence) Append(frame RawFrame) bool {
 
 		copy(m.data[:6], frame.Data[2:])
 	} else { // subsequent frames, have 7 bytes of data, first byte is for sequence counter and frame counter
-		idx := 6 + int(frameNr-1)*7
-		copy(m.data[idx:idx+len(frame.Data)], frame.Data[1:])
+		start := 6 + int(frameNr-1)*7
+		end := start + len(frame.Data) - 1
+		copy(m.data[start:end], frame.Data[1:])
 	}
 
 	return m.completeFramesMask == m.receivedFramesMask
@@ -164,10 +165,10 @@ func (a *FastPacketAssembler) Assemble(frame RawFrame, to *RawMessage) bool {
 			tmpFp.sequence != sequence {
 			continue
 		}
-		fp = tmpFp
+		fp = a.inTransfer[i]
 		idx = i
-		if tmpFp.lastReceivedFrameTime.Before(threshold) { // sequence is too old to be this frame sequence
-			tmpFp.Reset()
+		if fp.lastReceivedFrameTime.Before(threshold) { // sequence is too old to be this frame sequence
+			fp.Reset()
 		}
 	}
 	if fp == nil {
@@ -178,12 +179,14 @@ func (a *FastPacketAssembler) Assemble(frame RawFrame, to *RawMessage) bool {
 	}
 	isComplete := fp.Append(frame)
 	if isComplete { // message is now complete
+		fp.To(to) // copy data over to rawMessage
+
 		// remove item from in transfer list and put it back to pool
 		a.inTransfer[idx] = a.inTransfer[len(a.inTransfer)-1]
 		a.inTransfer = a.inTransfer[:len(a.inTransfer)-1]
 		a.pool.Put(fp)
-
-		fp.To(to)
+	} else {
+		a.inTransfer[idx] = fp
 	}
 	return isComplete
 }
