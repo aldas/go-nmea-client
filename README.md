@@ -22,6 +22,7 @@ following features:
       * N2K Ascii,
       * N2K Binary,
       * Raw ASCII
+      * ELB (log files from W2K-1 device)
 * Can output read raw frames/messages as:
     * JSON,
     * HEX,
@@ -107,6 +108,14 @@ Actisense [W2K-1](https://actisense.com/products/w2k-1-nmea-2000-wifi-gateway/) 
 and print output in JSON format.
 
 
+Read Actisense EBL log file as `BST-95` format (created by W2K-1 device) and output decoded messages as `json` format:
+```bash 
+./n2k-reader -pgns=canboat/testdata/canboat.json \
+   -device="actisense/testdata/actisense_w2k1_bst95.ebl" \
+   -is-file=true \
+   -output-format=json \
+   -input-format=elb
+```
 
 ## Library example
 

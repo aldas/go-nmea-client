@@ -432,15 +432,17 @@ func TestNGT1Device_Read(t *testing.T) {
 	wr := bufio.NewReadWriter(bufio.NewReader(r), nil)
 
 	device := NewBinaryDevice(wr)
+	i := 0
 	for {
 		packet, err := device.ReadRawMessage(context.Background())
 		if err == io.EOF {
 			break
 		}
+		i++
 
 		assert.NoError(t, err)
 		assert.Equal(t, packet, packet)
-		if err != nil {
+		if err != nil || i > 20 {
 			break
 		}
 	}

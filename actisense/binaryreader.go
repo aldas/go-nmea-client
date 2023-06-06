@@ -17,7 +17,7 @@ const (
 	STX = 0x02
 	// ETX end packet byte for Actisense parsed NMEA2000 packet
 	ETX = 0x03
-	// DLE marker byte before start/end packet byte. Is sent before STX or ETX byte is sent (DLE+STX or DLE+ETX)
+	// DLE marker byte before start/end packet byte. Is sent before STX or ETX byte is sent (DLE+STX or DLE+ETX). Is escaped by sending double DLE+DLE characters.
 	DLE = 0x10
 
 	// cmdNGTMessageReceived identifies that packet is received/incoming NMEA200 data message as NGT binary format.
@@ -69,6 +69,9 @@ type Config struct {
 	DebugLogRawMessageBytes bool
 	// OutputActisenseMessages instructs device to output Actisense own messages
 	OutputActisenseMessages bool
+
+	// LogFunc callback to output/print debug/log statements
+	LogFunc func(format string, a ...any)
 
 	// IsN2KWriter instructs device to write/send messages to NMEA200 bus as N2K binary format (used by Actisense W2K-1)
 	IsN2KWriter bool
@@ -164,8 +167,8 @@ func (d *BinaryFormatDevice) ReadRawMessage(ctx context.Context) (nmea.RawMessag
 			}
 			if currentByte == ETX { // end of message sequence
 				msg := message[0:messageByteIndex]
-				if d.config.DebugLogRawMessageBytes {
-					fmt.Printf("# DEBUG read raw actisense binary message: %x\n", msg)
+				if d.config.DebugLogRawMessageBytes && d.config.LogFunc != nil {
+					d.config.LogFunc("# DEBUG read raw actisense binary message: %x\n", msg)
 				}
 				switch message[0] {
 				case cmdNGTMessageReceived, cmdNGTMessageSend:

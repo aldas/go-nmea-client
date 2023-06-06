@@ -172,8 +172,8 @@ func (d *RawASCIIDevice) ReadRawFrame(ctx context.Context) (nmea.RawFrame, error
 		d.readIndex += endIndex
 
 		frame := d.readBuffer[0:d.readIndex]
-		if d.config.DebugLogRawMessageBytes {
-			fmt.Printf("# DEBUG Read Actisense RAW ASCII frame: %v\n", utils.FormatSpaces(frame))
+		if d.config.DebugLogRawMessageBytes && d.config.LogFunc != nil {
+			d.config.LogFunc("# DEBUG Read Actisense RAW ASCII frame: %v\n", utils.FormatSpaces(frame))
 		}
 		now := d.timeNow()
 		rawFrame, skip, err := parseRawASCII(frame, now)

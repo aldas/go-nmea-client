@@ -87,8 +87,8 @@ func (d *N2kASCIIDevice) ReadRawMessage(ctx context.Context) (nmea.RawMessage, e
 		d.readIndex += messageEndIndex
 
 		message := d.readBuffer[0:d.readIndex]
-		if d.config.DebugLogRawMessageBytes {
-			fmt.Printf("# DEBUG Actisense N2K ASCII message: %x\n", message)
+		if d.config.DebugLogRawMessageBytes && d.config.LogFunc != nil {
+			d.config.LogFunc("# DEBUG Actisense N2K ASCII message: %x\n", message)
 		}
 		now := d.timeNow()
 		rawMessage, skip, err := parseN2KAscii(message, now)

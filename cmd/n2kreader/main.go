@@ -35,7 +35,7 @@ func main() {
 	noShowPNG := flag.Bool("np", false, "do not print parsed PNGs")
 	noAddressMapper := flag.Bool("dam", false, "disable address mapper")
 	isFile := flag.Bool("is-file", false, "consider device as ordinary file")
-	inputFormat := flag.String("input-format", "ngt", "in which format packet are read (ngt, n2k-bin, n2k-ascii, n2k-raw-ascii, canboat-raw)")
+	inputFormat := flag.String("input-format", "ngt", "in which format packet are read (ngt, n2k-bin, n2k-ascii, n2k-raw-ascii, canboat-raw, elb)")
 	deviceAddr := flag.String("device", "/dev/ttyUSB0", "path to Actisense NGT-1 USB device")
 	pgnsPath := flag.String("pgns", "", "path to Canboat pgns.json file")
 	pgnFilter := flag.String("filter", "", "comma separated list of PGNs to filter")
@@ -101,7 +101,7 @@ func main() {
 	}
 
 	switch *inputFormat {
-	case "ngt", "n2k-bin", "n2k-ascii", "n2k-raw-ascii", "canboat-raw", "socketcan":
+	case "ngt", "n2k-bin", "n2k-ascii", "n2k-raw-ascii", "elb", "canboat-raw", "socketcan":
 	default:
 		log.Fatal("unknown input format type given\n")
 	}
@@ -141,6 +141,9 @@ func main() {
 	config := actisense.Config{
 		ReceiveDataTimeout:      5 * time.Second,
 		DebugLogRawMessageBytes: *printRaw, // || *onlyRaw // FIXME
+		LogFunc: func(format string, a ...any) {
+			fmt.Printf(format, a...)
+		},
 	}
 	if *isFile {
 		config.ReceiveDataTimeout = 100 * time.Millisecond
@@ -155,6 +158,8 @@ func main() {
 		})
 	case "canboat-raw":
 		device = canboat.NewCanBoatReader(reader)
+	case "elb":
+		device = actisense.NewEBLFormatDeviceWithConfig(reader, config)
 	case "ngt", "n2k-bin":
 		device = actisense.NewBinaryDeviceWithConfig(reader, config)
 	case "n2k-ascii":
@@ -276,7 +281,7 @@ func main() {
 			throttled[tKey] = rawMessage.Time.Add(*throttle)
 		}
 
-		pgn, err := decoder.Decode(rawMessage)
+		decoded, err := decoder.Decode(rawMessage)
 		if err != nil {
 			errorCountDecode++
 			var b []byte
@@ -291,9 +296,9 @@ func main() {
 			continue
 		}
 
-		pgn.NodeNAME = nodeNAME
+		decoded.NodeNAME = nodeNAME
 		if isCSV {
-			if fields, cpgn, ok := csvFields.Match(pgn, rawMessage.Time); ok {
+			if fields, cpgn, ok := csvFields.Match(decoded, rawMessage.Time); ok {
 				if err := writeCSV(cpgn, fields); err != nil {
 					log.Fatal(err)
 				}
@@ -306,7 +311,7 @@ func main() {
 		var b []byte
 		switch *outputFormat {
 		case "json":
-			b, err = json.Marshal(pgn)
+			b, err = json.Marshal(decoded)
 		case "canboat":
 			b, err = canboat.MarshalRawMessage(rawMessage) // FIXME: as raw and not as canboat json
 		case "hex":
