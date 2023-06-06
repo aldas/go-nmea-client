@@ -10,6 +10,7 @@ import (
 )
 
 // EBL log file format used by Actisense W2K-1. Probably called "CAN-Raw (BST-95) message format"
+// NGT1 ebl files are probably in different format.
 //
 // Example data frame from one EBL file:
 // 1b 01 07 95 0e 28 9a 00 01 f8 09 3d 0d b3 22 48 32 59 0d 1b 0a

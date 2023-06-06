@@ -35,7 +35,7 @@ func main() {
 	noShowPNG := flag.Bool("np", false, "do not print parsed PNGs")
 	noAddressMapper := flag.Bool("dam", false, "disable address mapper")
 	isFile := flag.Bool("is-file", false, "consider device as ordinary file")
-	inputFormat := flag.String("input-format", "ngt", "in which format packet are read (ngt, n2k-bin, n2k-ascii, n2k-raw-ascii, canboat-raw, elb)")
+	inputFormat := flag.String("input-format", "ngt", "in which format packet are read (ngt, n2k-bin, n2k-ascii, n2k-raw-ascii, canboat-raw, ebl)")
 	deviceAddr := flag.String("device", "/dev/ttyUSB0", "path to Actisense NGT-1 USB device")
 	pgnsPath := flag.String("pgns", "", "path to Canboat pgns.json file")
 	pgnFilter := flag.String("filter", "", "comma separated list of PGNs to filter")
@@ -101,7 +101,7 @@ func main() {
 	}
 
 	switch *inputFormat {
-	case "ngt", "n2k-bin", "n2k-ascii", "n2k-raw-ascii", "elb", "canboat-raw", "socketcan":
+	case "ngt", "n2k-bin", "n2k-ascii", "n2k-raw-ascii", "ebl", "canboat-raw", "socketcan":
 	default:
 		log.Fatal("unknown input format type given\n")
 	}
@@ -158,7 +158,7 @@ func main() {
 		})
 	case "canboat-raw":
 		device = canboat.NewCanBoatReader(reader)
-	case "elb":
+	case "ebl":
 		device = actisense.NewEBLFormatDeviceWithConfig(reader, config)
 	case "ngt", "n2k-bin":
 		device = actisense.NewBinaryDeviceWithConfig(reader, config)

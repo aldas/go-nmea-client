@@ -22,7 +22,7 @@ following features:
       * N2K Ascii,
       * N2K Binary,
       * Raw ASCII
-      * ELB (log files from W2K-1 device)
+      * EBL (log files from W2K-1 device, NB: NGT1 format is different)
 * Can output read raw frames/messages as:
     * JSON,
     * HEX,
@@ -114,7 +114,7 @@ Read Actisense EBL log file as `BST-95` format (created by W2K-1 device) and out
    -device="actisense/testdata/actisense_w2k1_bst95.ebl" \
    -is-file=true \
    -output-format=json \
-   -input-format=elb
+   -input-format=ebl
 ```
 
 ## Library example
