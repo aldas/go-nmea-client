@@ -57,4 +57,4 @@ help: ## Display this help screen
 
 download-canboat-pgns: # Downloads Canboat PNG definitions (pgns.json) from Canboat repository
 	# download canboat v4.10.0 PGNs
-	@wget -O canboat/testdata/canboat.json https://raw.githubusercontent.com/canboat/canboat/v4.10.0/docs/canboat.json
+	@wget -O canboat/testdata/canboat.json -O cmd/n2kreader/canboat.json https://raw.githubusercontent.com/canboat/canboat/v4.10.0/docs/canboat.json

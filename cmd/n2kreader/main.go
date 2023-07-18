@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"embed"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -17,6 +18,7 @@ import (
 	"github.com/aldas/go-nmea-client/socketcan"
 	"github.com/tarm/serial"
 	"io"
+	"io/fs"
 	"log"
 	"net"
 	"os"
@@ -28,6 +30,9 @@ import (
 	"time"
 )
 
+//go:embed `canboat.json`
+var canboatDB embed.FS
+
 func main() {
 	printRaw := flag.Bool("raw", false, "prints raw message")
 	onlyRead := flag.Bool("read-only", false, "only reads device/file and does not write into it")
@@ -38,6 +43,7 @@ func main() {
 	inputFormat := flag.String("input-format", "ngt", "in which format packet are read (ngt, n2k-bin, n2k-ascii, n2k-raw-ascii, canboat-raw, ebl)")
 	deviceAddr := flag.String("device", "/dev/ttyUSB0", "path to Actisense NGT-1 USB device")
 	pgnsPath := flag.String("pgns", "", "path to Canboat pgns.json file")
+	sources := flag.String("source", "", "comma separated list of Source addresses to filter")
 	pgnFilter := flag.String("filter", "", "comma separated list of PGNs to filter")
 	csvFieldsRaw := flag.String("csv-fields", "", "list of PGNs and their fields to be written in CSV. `129025:time_ms,latitude,longitude;65280:time_ms,manufacturerCode,industryCode`")
 	outputFormat := flag.String("output-format", "json", "in which format raw and decoded packet should be printed out (json, canboat, hex, base64)")
@@ -55,11 +61,17 @@ func main() {
 	var decoder *canboat.Decoder
 	var fastPacketPGNs []uint32
 	if !*onlyRaw {
-		if pgnsPath == nil || *pgnsPath == "" {
-			log.Fatal("# missing pgns.json path\n")
+		var canboatDBFS fs.FS
+		var canboatDBPath string
+		if pgnsPath != nil && *pgnsPath != "" {
+			canboatDBFS = os.DirFS(".")
+			canboatDBPath = *pgnsPath
+		} else {
+			canboatDBFS = canboatDB
+			canboatDBPath = "canboat.json"
 		}
 
-		schema, err := canboat.LoadCANBoatSchema(os.DirFS("."), *pgnsPath)
+		schema, err := canboat.LoadCANBoatSchema(canboatDBFS, canboatDBPath)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -70,13 +82,21 @@ func main() {
 	}
 
 	var err error
-	var filter []uint32
+	var filter msgFilters
 	if pgnFilter != nil && *pgnFilter != "" {
-		filter, err = string2intSlice(*pgnFilter)
+		filter, err = parseMsgFilters(*pgnFilter)
 		if err != nil {
 			log.Fatalf("invalid pgn filter given, %v\n", err)
 		}
 		fmt.Printf("# Using PGN filter: %v\n", filter)
+	}
+	var sourceAllowFilter []uint8
+	if sources != nil && *sources != "" {
+		sourceAllowFilter, err = string2intSlice[uint8](*sources)
+		if err != nil {
+			log.Fatalf("invalid source address filter given, %v\n", err)
+		}
+		fmt.Printf("# Using Source address filter: %v\n", filter)
 	}
 
 	var csvFields csvPGNs
@@ -87,12 +107,13 @@ func main() {
 			log.Fatalf("%v\n", err)
 		}
 		for _, cf := range csvFields {
-			filter = append(filter, cf.PGN)
+			filter = filter.appendPGN(cf.PGN)
 		}
 		if len(csvFields) > 0 {
 			isCSV = true
 		}
 	}
+	sort.Sort(mfSorter(filter))
 
 	switch *outputFormat {
 	case "json", "canboat", "hex", "base64":
@@ -173,9 +194,9 @@ func main() {
 		if err := device.Initialize(); err != nil {
 			log.Fatal(err)
 		}
+		time.Sleep(1 * time.Second) // give some time to "warm up"
 	}
 	fmt.Printf("# Starting to read device: %v\n", *deviceAddr)
-	time.Sleep(1 * time.Second)
 
 	isAddressMapperEnabled := noAddressMapper == nil || !*noAddressMapper
 	var addressMapper *addressmapper.AddressMapper
@@ -244,7 +265,10 @@ func main() {
 			}
 		}
 
-		if filter != nil && !contains(filter, rawMessage.Header.PGN) {
+		if sourceAllowFilter != nil && !contains(sourceAllowFilter, rawMessage.Header.Source) {
+			continue
+		}
+		if !filter.matches(rawMessage.Header) {
 			continue
 		}
 
@@ -332,7 +356,8 @@ func handleSTDIO(ctx context.Context, device nmea.RawMessageWriter, addressMappe
 		if line == "" {
 			continue
 		}
-		if strings.HasPrefix(line, "!nodes") {
+
+		if strings.HasPrefix(line, "!nodes") && addressMapper != nil {
 			nodes := addressMapper.Nodes()
 			sort.Sort(nodesBySrc(nodes))
 
@@ -346,8 +371,9 @@ func handleSTDIO(ctx context.Context, device nmea.RawMessageWriter, addressMappe
 				}
 			}
 			continue
-		} else if strings.HasPrefix(line, "!addr-claim") {
+		} else if strings.HasPrefix(line, "!addr-claim") && addressMapper != nil {
 			addressMapper.BroadcastIsoAddressClaimRequest()
+			continue
 		}
 		msg, err := parseLine(line)
 		if err != nil {
@@ -439,14 +465,14 @@ func parseUint8(raw string, min int, max int, name string) (uint8, error) {
 	return uint8(n), nil
 }
 
-func string2intSlice(s string) ([]uint32, error) {
-	result := make([]uint32, 0, 10)
+func string2intSlice[T uint8 | uint32](s string) ([]T, error) {
+	result := make([]T, 0, 10)
 	for _, p := range strings.Split(s, ",") {
 		pgn, err := strconv.Atoi(p)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, uint32(pgn))
+		result = append(result, T(pgn))
 	}
 	return result, nil
 }
@@ -465,3 +491,77 @@ type nodesBySrc addressmapper.Nodes
 func (v nodesBySrc) Len() int           { return len(v) }
 func (v nodesBySrc) Swap(i, j int)      { v[i], v[j] = v[j], v[i] }
 func (v nodesBySrc) Less(i, j int) bool { return v[i].Source < v[j].Source }
+
+type msgFilter struct {
+	PGN       uint32
+	Source    uint8
+	HasSource bool
+}
+
+type msgFilters []msgFilter
+
+func parseMsgFilters(s string) (msgFilters, error) {
+	result := make([]msgFilter, 0)
+	for _, p := range strings.Split(s, ",") {
+		parts := strings.Split(p, ":")
+		pgn, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse PGN in filter, err: %w", err)
+		}
+		f := msgFilter{
+			PGN:       uint32(pgn),
+			Source:    0,
+			HasSource: false,
+		}
+		if len(parts) > 1 {
+			tmpSource, err := strconv.ParseUint(parts[1], 10, 8)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse source in filter, err: %w", err)
+			}
+			f.Source = uint8(tmpSource)
+			f.HasSource = true
+		}
+		result = append(result, f)
+	}
+	return result, nil
+}
+
+func (mf msgFilters) appendPGN(pgn uint32) msgFilters {
+	// in case existing filters already have same PGN with source filter we do not add thing PGN
+	for _, f := range mf {
+		if f.PGN == pgn && f.HasSource {
+			return mf
+		}
+	}
+
+	return append(mf, msgFilter{PGN: pgn})
+}
+
+func (mf *msgFilters) matches(header nmea.CanBusHeader) bool {
+	if mf == nil || len(*mf) == 0 {
+		return true // no filter means match everything
+	}
+	for _, f := range *mf {
+		if f.PGN != header.PGN {
+			continue
+		}
+		if !f.HasSource {
+			return true
+		}
+		if f.Source == header.Source {
+			return true
+		}
+	}
+	return false
+}
+
+type mfSorter msgFilters
+
+func (mf mfSorter) Len() int      { return len(mf) }
+func (mf mfSorter) Swap(i, j int) { mf[i], mf[j] = mf[j], mf[i] }
+func (mf mfSorter) Less(i, j int) bool {
+	if mf[i].PGN == mf[j].PGN {
+		return mf[i].Source > mf[j].Source
+	}
+	return mf[i].PGN > mf[j].PGN
+}

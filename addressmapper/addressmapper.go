@@ -164,8 +164,20 @@ type ConfigurationInfo struct {
 	ManufacturerInfo  string
 }
 
+// Config configures how AddressMapper instance behaves
+type Config struct {
+	// RequestProductInfo decides if Product Info (126996) is requested after processing AddressClaim (60928)
+	RequestProductInfo bool
+	// RequestConfigurationInformation decides if Configuration Information (126998) is requested after processing Product Info (126996)
+	RequestConfigurationInformation bool
+	// RequestPGNList decides if PGN List (126464) is requested after processing Configuration Information (126998)
+	RequestPGNList bool
+}
+
 type AddressMapper struct {
 	mutex sync.Mutex
+
+	config Config
 
 	// when new device is detected we use this channel to send additional PGNs to query information about that node
 	// ask for device name, product info, configuration info, pgn list
@@ -183,14 +195,28 @@ type AddressMapper struct {
 	now func() time.Time
 }
 
+// NewAddressMapper creates new instance of AddressMapper with default configuration
 func NewAddressMapper(nmeaDevice nmea.RawMessageWriter) *AddressMapper {
+	return NewAddressMapperWithConfig(
+		nmeaDevice,
+		Config{
+			RequestProductInfo:              false,
+			RequestConfigurationInformation: false,
+			RequestPGNList:                  false,
+		},
+	)
+}
+
+// NewAddressMapperWithConfig creates new instance of AddressMapper with given configuration
+func NewAddressMapperWithConfig(nmeaDevice nmea.RawMessageWriter, config Config) *AddressMapper {
 	return &AddressMapper{
 		mutex: sync.Mutex{},
 		now:   time.Now,
 
 		toggleWriteChan: make(chan bool),
-		requestsChan:    make(chan nmea.RawMessage, addressMapperWriteChannelSize), // TODO: messages could come in bursts. 100+ in very short window for broadcasts (dst=255)
+		requestsChan:    make(chan nmea.RawMessage, addressMapperWriteChannelSize),
 		nmeaDevice:      nmeaDevice,
+		config:          config,
 
 		knownNodes:   make(map[uint64]*Node),
 		address2node: [255]*busSlot{},
@@ -233,7 +259,7 @@ func (m *AddressMapper) Run(ctx context.Context) error {
 		case writeEnabled := <-m.toggleWriteChan:
 			enabled = writeEnabled
 			if enabled {
-				writeTimer.Reset(10 * time.Millisecond)
+				writeTimer.Reset(40 * time.Millisecond) // throttle sending to 40ms not to overflow the bus
 			} else {
 				writeTimer.Stop()
 			}
@@ -358,7 +384,7 @@ func (m *AddressMapper) processISOAddressClaim(slot *busSlot, raw nmea.RawMessag
 	}
 
 	// if we already have not requested, then request product info for that device
-	if m.writeEnabled && slot.productInfoRequested.IsZero() {
+	if m.writeEnabled && m.config.RequestProductInfo && slot.productInfoRequested.IsZero() {
 		slot.productInfoRequested = m.now()
 		m.requestsChan <- createISORequest(nmea.PGNProductInfo, source)
 	}
@@ -378,7 +404,7 @@ func (m *AddressMapper) processProductInfo(slot *busSlot, raw nmea.RawMessage) e
 	slot.node.ValidProductInfo = true
 
 	// if we already have not requested, then request configuration info for that node
-	if m.writeEnabled && slot.configInfoRequested.IsZero() {
+	if m.writeEnabled && m.config.RequestConfigurationInformation && slot.configInfoRequested.IsZero() {
 		slot.configInfoRequested = m.now()
 		m.requestsChan <- createISORequest(nmea.PGNConfigurationInformation, raw.Header.Source)
 	}
@@ -398,7 +424,7 @@ func (m *AddressMapper) processConfigurationInfo(slot *busSlot, raw nmea.RawMess
 	slot.node.ValidConfigurationInfo = true
 
 	// if we already have not requested, then request PGN list for that node
-	if m.writeEnabled && slot.pgnListRequested.IsZero() {
+	if m.writeEnabled && m.config.RequestPGNList && slot.pgnListRequested.IsZero() {
 		slot.pgnListRequested = m.now()
 		m.requestsChan <- createISORequest(nmea.PGNPGNList, raw.Header.Source)
 	}

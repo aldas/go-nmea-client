@@ -18,5 +18,6 @@
 
 # Ignore Canboat PGNs file https://github.com/canboat/canboat/blob/master/docs/canboat.json
 canboat/testdata/canboat.json
+cmd/n2kreader/canboat.json
 
 n2k-reader*

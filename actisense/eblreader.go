@@ -17,12 +17,19 @@ import (
 //
 // 1b 01 <-- start of data frame (ESC+SOH)
 //
-//	07 95 <-- "95" is maybe row type. Actisense EBL Reader v2.027 says "now has added support for the new CAN-Raw (BST-95) message format that is used for all data logging on Actisense W2K-1"
+//	07 95 <-- "95" is maybe frame type. Actisense EBL Reader v2.027 says "now has added support for the new CAN-Raw (BST-95) message format that is used for all data logging on Actisense W2K-1"
 //	     0e <-- lengths 14 bytes till end
 //	       28 9a <-- timestamp 39464 (hex 9A28) (little endian)
 //	            00 01 f8 09  <--- 0x09f80100 = src:0, dst:255, pgn:129025 (1f801), prio:2 (little endian)
 //	                       3d 0d b3 22 48 32 59 0d <-- CAN payload (N2K endian rules), lat(32bit) 22b30d3d = 582159677, lon(32bit) 0d593248 = 223949384
 //	                                               1b 0a <-- end of data frame (ESC+LF)
+//
+// Timestamp is offset from time found in first data frame in file
+// Example: first frame in file:
+// 1B 01 03 00 10 E7 A7 84 83 D9 01 1B 0A
+//
+//	03 <--- "03" maybe frame type
+//	   00 10 E7 A7 84 83 D9 01 <-- 8 byte little endian unsigned number,
 const (
 	// SOH is start of data frame byte for Actisense BST-95 (EBL file created by Actisense W2K-1 device)
 	SOH = 0x01
@@ -126,9 +133,15 @@ func (d *EBLFormatDevice) ReadRawMessage(ctx context.Context) (nmea.RawMessage, 
 				if d.config.DebugLogRawMessageBytes && d.config.LogFunc != nil {
 					d.config.LogFunc("# DEBUG read raw actisense ELB message: %x\n", msg)
 				}
+				//if msg[0] == 0x3 { // 0x03 seems to be time since start of day (8 bytes)
+				//	d.config.LogFunc("# TIME: %x\n", msg)
+				//}
 				if msg[0] == 0x7 && msg[1] == cmdRAWActisenseMessageReceived { // 0x07+0x95 seems to identify BST-95 message
 					return fromActisenseBST95Message(msg[2:], now)
 				}
+				//if msg[0] != 0x3 && msg[0] != 0x7 { // all other messages
+				//	d.config.LogFunc("# XXX: %x\n", msg)
+				//}
 				if d.config.LogFunc != nil {
 					d.config.LogFunc("# ERROR unknown message type read: %x\n", msg)
 				}
